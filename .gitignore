@@ -1,0 +1,53 @@
+# Rojo / Roblox Studio build output and local place files
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.lock
+*.rbxlx.lock
+build/
+out/
+sourcemap.json
+
+# Tool caches
+.aftman/
+.foreman/
+.rokit/
+.vscode/
+.idea/
+roblox_packages/
+Packages/
+DevPackages/
+ServerPackages/
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local scratch and machine-specific tooling (Blender MCP setup, local Codex config)
+work/
+tmp/
+scratch/
+*.log
+*.bak
+
+# Secrets, credentials and local config
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.cookie
+.ROBLOSECURITY
+secrets.*
+credentials.*
+config.toml
+.codex/
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
