@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local Seals = require(ReplicatedStorage.Shared.Definitions.Seals)
@@ -102,7 +103,8 @@ local function render()
 	local p = snapshot.profile
 	local now = workspace:GetServerTimeNow()
 
-	levelLabel.Text = string.format("Lv %d", p.level)
+	local class = Classes.Get(p.classId)
+	levelLabel.Text = string.format("Lv %d · %s", p.level, if class then class.displayNameTH else p.classId)
 	local xpToNext = p.xpToNext
 	if xpToNext then
 		xpBar.fill.Size = UDim2.fromScale(math.clamp(p.xp / xpToNext, 0, 1), 1)
@@ -147,7 +149,7 @@ local function render()
 			else "ผนึก: " .. sealDef.displayNameTH
 	end
 
-	local skillLeft = remaining(s.cooldowns[Prototype.Skill.Id], now)
+	local skillLeft = remaining(s.cooldowns[Classes.Kit(p.classId).skill.id], now)
 	skillChip.Text = if skillLeft > 0 then string.format("วิชา E  %.1f", skillLeft) else "วิชา E  พร้อม"
 	local dashLeft = remaining(s.cooldowns.dash, now)
 	dashChip.Text = if dashLeft > 0 then string.format("พุ่ง Q  %.1f", dashLeft) else "พุ่ง Q  พร้อม"

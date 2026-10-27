@@ -25,6 +25,7 @@ local SCHEMAS: { [string]: { [string]: FieldKind } } = {
 	transform = {},
 	claim_quest = { questId = "string" },
 	apply_seal = { itemInstanceId = "string", sealId = "string" },
+	choose_class = { classId = "string" },
 }
 
 type Bucket = { tokens: number, at: number }

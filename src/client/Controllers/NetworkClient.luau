@@ -21,6 +21,7 @@ local dialogueListeners: { (Contracts.DialogueEvent) -> () } = {}
 local noticeListeners: { (Contracts.NoticeEvent) -> () } = {}
 local sealMenuListeners: { (Contracts.SealMenuEvent) -> () } = {}
 local encounterListeners: { (Contracts.EncounterEvent) -> () } = {}
+local classMenuListeners: { (Contracts.ClassMenuEvent) -> () } = {}
 local pendingActions: { [string]: string } = {}
 local readyOk = false
 -- The server answered `ready` with NOT_READY: it is up but this player's
@@ -70,6 +71,10 @@ function NetworkClient.OnEncounter(callback: (Contracts.EncounterEvent) -> ())
 	table.insert(encounterListeners, callback)
 end
 
+function NetworkClient.OnClassMenu(callback: (Contracts.ClassMenuEvent) -> ())
+	table.insert(classMenuListeners, callback)
+end
+
 function NetworkClient.GetSnapshot(): Contracts.SnapshotEvent?
 	return latestSnapshot
 end
@@ -114,6 +119,10 @@ local function onState(event: Contracts.StateEvent)
 		end
 	elseif event.kind == "encounter" then
 		for _, callback in encounterListeners do
+			task.spawn(callback, event)
+		end
+	elseif event.kind == "class_menu" then
+		for _, callback in classMenuListeners do
 			task.spawn(callback, event)
 		end
 	end

@@ -13,6 +13,7 @@ local HUDController = require(Controllers.HUDController)
 local QuestController = require(Controllers.QuestController)
 local SealController = require(Controllers.SealController)
 local BossController = require(Controllers.BossController)
+local ClassController = require(Controllers.ClassController)
 
 PrototypeBannerController.Start()
 CameraController.Start()
@@ -28,6 +29,7 @@ HUDController.Start(NetworkClient)
 QuestController.Start(NetworkClient)
 SealController.Start(NetworkClient)
 BossController.Start(NetworkClient)
+ClassController.Start(NetworkClient)
 
 if not NetworkClient.Start() then
 	if NetworkClient.ProfileNotReady() then

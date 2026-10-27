@@ -10,6 +10,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
 local Npcs = require(ReplicatedStorage.Shared.Definitions.Npcs)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local World = require(ReplicatedStorage.Shared.Definitions.World)
@@ -31,6 +32,10 @@ type Seals = {
 	OpenMenu: (Player) -> (),
 }
 
+type ClassMenu = {
+	OpenMenu: (Player) -> (),
+}
+
 local NpcService = {}
 
 NpcService.NpcTag = "SpiritWardNpc"
@@ -45,6 +50,7 @@ local TRACE_BLUE = Color3.fromRGB(140, 210, 255)
 local quests: Quests
 local playerState: PlayerState
 local seals: Seals
+local classes: ClassMenu
 local lastUse: { [Player]: number } = {}
 
 local function prompt(holder: BasePart, action: string, object: string, range: number): ProximityPrompt
@@ -93,12 +99,15 @@ local function buildNpc(parent: Instance, npc: Npcs.NpcDef): Model
 	m:SetAttribute("NpcId", npc.id)
 	CollectionService:AddTag(m, NpcService.NpcTag)
 
-	local p = prompt(head, if npc.id == SealRules.StationNpcId then "ผนึกดาบ" else "คุย", npc.displayNameTH, npc.talkRangeStuds)
+	local action = if npc.id == SealRules.StationNpcId then "ผนึกดาบ" elseif npc.id == Classes.StationNpcId then "เลือกอาชีพ" else "คุย"
+	local p = prompt(head, action, npc.displayNameTH, npc.talkRangeStuds)
 	p.Triggered:Connect(function(player)
 		if allow(player) and quests.InRange(player, npc, 2) then
 			if npc.id == SealRules.StationNpcId then
 				-- The smith's stall is the seal station (M2-E): menu instead of chat.
 				seals.OpenMenu(player)
+			elseif npc.id == Classes.StationNpcId then
+				classes.OpenMenu(player)
 			else
 				quests.Talk(player, npc.id)
 			end
@@ -154,10 +163,11 @@ function NpcService.Build(): Folder?
 	return folder
 end
 
-function NpcService.Init(deps: { Quests: Quests, PlayerState: PlayerState, Seals: Seals })
+function NpcService.Init(deps: { Quests: Quests, PlayerState: PlayerState, Seals: Seals, Classes: ClassMenu })
 	quests = deps.Quests
 	playerState = deps.PlayerState
 	seals = deps.Seals
+	classes = deps.Classes
 end
 
 function NpcService.Start()

@@ -111,4 +111,29 @@ function Geometry.InSector(
 	return Geometry.LineOfSight(origin, target)
 end
 
+-- Target touching a flat strip from `origin` along `dir` for `length`,
+-- `width` wide (M4 ninja dash strike), within the height band and in sight.
+function Geometry.InStrip(
+	origin: Vector3,
+	dir: Vector3,
+	target: Vector3,
+	length: number,
+	width: number,
+	targetRadius: number
+): boolean
+	if math.abs(target.Y - origin.Y) > Prototype.Combat.MaxHeightDiffStuds then
+		return false
+	end
+	local offset = Geometry.Flat(target - origin)
+	local along = offset:Dot(dir)
+	if along < -targetRadius or along > length + targetRadius then
+		return false
+	end
+	local side = (offset - dir * along).Magnitude
+	if side > width / 2 + targetRadius then
+		return false
+	end
+	return Geometry.LineOfSight(origin, target)
+end
+
 return Geometry

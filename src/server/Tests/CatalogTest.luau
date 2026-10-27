@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Definitions = ReplicatedStorage.Shared.Definitions
 local EnemyModels = require(script.Parent.Parent.Enemies.Models)
+local Classes = require(Definitions.Classes)
 local Enemies = require(Definitions.Enemies)
 local Items = require(Definitions.Items)
 local Progression = require(Definitions.Progression)
@@ -192,10 +193,11 @@ local cases: { Case } = {
 		name = "skills and items are complete",
 		run = function()
 			for id, s in Skills do
-				if s.id ~= id or s.classId ~= Prototype.ClassId then
+				if s.id ~= id or Classes.Get(s.classId) == nil then
 					return false, id
 				end
-				if not (positive(s.cooldownSec) and positive(s.rangeStuds) and positive(s.damageMultiplier)) or s.arcDeg <= 0 or s.arcDeg > 360 then
+				local shapeOk = if s.hitShape == "line" then positive(s.widthStuds or 0) else s.arcDeg > 0 and s.arcDeg <= 360
+				if not (positive(s.cooldownSec) and positive(s.rangeStuds) and positive(s.damageMultiplier)) or not shapeOk then
 					return false, id .. " values"
 				end
 			end

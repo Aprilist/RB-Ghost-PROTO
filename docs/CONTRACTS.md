@@ -6,7 +6,7 @@
 
 stable IDs เป็น lowercase snake_case ไม่ใช้ชื่อภาษาไทยเป็น key:
 
-- class: blade, shade, talisman
+- class: blade (ซามูไร), shade (นินจา), talisman (องเมียวจิ) — ชื่อที่ผู้เล่นเห็นอยู่ใน `Definitions/Classes.luau`; cast_skill ต้องเป็นสกิล E ของอาชีพปัจจุบัน
 - enemy: lantern_wisp, root_shade, bell_moth, shrine_guard
 - boss: extinguished_keeper
 - zone: last_lantern_village, mistwood, abandoned_shrine
@@ -59,6 +59,7 @@ requestId เป็น string จำกัด 64 bytes; payload ห้ามส�
 | transform | {} | gauge = 100, not active, alive | 1/sec burst 2 |
 | apply_seal | {itemInstanceId, sealId} | ownership, shrine distance, essence | 2/sec burst 2 |
 | claim_quest | {questId} | ready; never previously claimed | 2/sec burst 2 |
+| choose_class | {classId} | class มีอยู่และเปิดแล้ว (`NOT_OWNED` ถ้ายังไม่เปิด), alive, อยู่ในระยะครูฝึก `npc_trainer`; เปลี่ยน `profile.classId` ผ่าน Mutate ฟรีและซ้ำได้ (M4) | 2/sec burst 2 |
 
 ActionResult codes: OK, NOT_READY, INVALID_PAYLOAD, RATE_LIMITED, COOLDOWN, DEAD, OUT_OF_RANGE, NOT_OWNED, INSUFFICIENT_ESSENCE, QUEST_NOT_READY, ALREADY_CLAIMED, CAP_REACHED, INTERNAL_ERROR
 
@@ -71,6 +72,7 @@ StateEvent kinds:
 - snapshot: `{kind, revision, profile: PublicOwnProfile, session: PublicOwnSession}` ส่งเฉพาะเจ้าของหลัง ready และหลัง authoritative mutation ใน slice
 - combat_fx: `{kind, eventId, actorUserId?, enemyId?, effectId, position}` ส่งภาพเฉพาะผู้ใกล้เหตุการณ์ ไม่แนบ profile
 - encounter: `{kind, encounterId, state, endsAt?}` ส่งผู้เข้าร่วม
+- class_menu: `{kind, npcId, speakerTH}` ส่งเฉพาะผู้ที่กด prompt ครูฝึก เปิดเมนูเลือกอาชีพ (M4)
 
 snapshot รวมข้อมูลที่ UI ต้องใช้ทั้งหมดใน slice; client ทิ้ง snapshot revision ที่ต่ำกว่าล่าสุด ส่วน session-only changes ใช้ revision เพิ่มด้วยเพื่อรักษาลำดับเดียวกัน ห้ามใช้ revision ของ persisted profile เป็น session fencing token
 

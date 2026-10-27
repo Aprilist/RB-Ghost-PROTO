@@ -15,6 +15,7 @@ export type ActionName =
 	| "transform"
 	| "claim_quest"
 	| "apply_seal"
+	| "choose_class" -- M4: switch class at the trainer NPC
 
 export type ResultCode =
 	"OK"
@@ -39,6 +40,7 @@ export type DashPayload = { moveDirection: Vector3 }
 export type TransformPayload = {}
 export type ClaimQuestPayload = { questId: string }
 export type ApplySealPayload = { itemInstanceId: string, sealId: string }
+export type ChooseClassPayload = { classId: string }
 
 -- client → server (ActionRequest)
 export type ActionRequest = {
@@ -150,7 +152,15 @@ export type EncounterEvent = {
 	joined: boolean,
 }
 
-export type StateEvent = SnapshotEvent | CombatFxEvent | DialogueEvent | NoticeEvent | SealMenuEvent | EncounterEvent
+-- Opens the class menu for the player who used the trainer NPC (M4). Class
+-- names come from Definitions/Classes, the current class from the snapshot.
+export type ClassMenuEvent = {
+	kind: "class_menu",
+	npcId: string,
+	speakerTH: string,
+}
+
+export type StateEvent = SnapshotEvent | CombatFxEvent | DialogueEvent | NoticeEvent | SealMenuEvent | EncounterEvent | ClassMenuEvent
 
 return {
 	RemoteFolderName = "SpiritWardRemotes",
@@ -171,5 +181,6 @@ return {
 		transform = { perSec = 1, burst = 2 },
 		claim_quest = { perSec = 2, burst = 2 },
 		apply_seal = { perSec = 2, burst = 2 },
+		choose_class = { perSec = 2, burst = 2 },
 	},
 }

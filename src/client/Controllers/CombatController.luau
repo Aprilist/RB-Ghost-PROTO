@@ -7,6 +7,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 
@@ -129,20 +130,27 @@ local function isTransformed(): boolean
 	return endsAt ~= nil and workspace:GetServerTimeNow() < endsAt
 end
 
+-- The player's class numbers (M4); samurai until the first snapshot.
+local function kit(): Classes.Kit
+	local snapshot = network.GetSnapshot()
+	return Classes.Kit(if snapshot then snapshot.profile.classId else Prototype.ClassId)
+end
+
 local function basicAttack()
 	local root = getRoot()
 	if not root then
 		return
 	end
+	local k = kit()
 	local now = os.clock()
-	if now - lastSwingAt < C.BasicIntervalSec then
+	if now - lastSwingAt < k.basicIntervalSec then
 		return -- local cadence; server enforces its own
 	end
 	comboStep = if now - lastSwingAt > C.ComboResetSec then 1 else comboStep % C.BasicComboSteps + 1
 	lastSwingAt = now
 
 	local transformed = isTransformed()
-	local reach = if transformed then Prototype.Spirit.TransformAttackReachStuds else C.BasicReachStuds
+	local reach = if transformed then Prototype.Spirit.TransformAttackReachStuds else k.basicReachStuds
 	local aim = softAim(root, camera.GetAimDirection(root), reach)
 	face(root, aim)
 	if transformed then
@@ -153,20 +161,28 @@ local function basicAttack()
 	network.Send("basic_attack", { sequence = comboStep, aimDirection = aim })
 end
 
+local dashMotion: (BasePart, Vector3) -> ()
+
 local function castSkill()
 	local root = getRoot()
 	if not root then
 		return
 	end
-	if not cooldownReady(Prototype.Skill.Id) then
+	local skill = kit().skill
+	if not cooldownReady(skill.id) then
 		banner.ShowAction(REJECT_TEXT.COOLDOWN)
 		return
 	end
-	predictedCooldowns[Prototype.Skill.Id] = workspace:GetServerTimeNow() + Prototype.Skill.CooldownSec
-	local aim = softAim(root, camera.GetAimDirection(root), Prototype.Skill.ReachStuds)
+	predictedCooldowns[skill.id] = workspace:GetServerTimeNow() + skill.cooldownSec
+	local aim = softAim(root, camera.GetAimDirection(root), skill.rangeStuds)
 	face(root, aim)
-	effects.PlaySweep(root, aim)
-	network.Send("cast_skill", { skillId = Prototype.Skill.Id, aimDirection = aim })
+	network.Send("cast_skill", { skillId = skill.id, aimDirection = aim })
+	if skill.hitShape == "line" then
+		-- Ninja dash strike: moves exactly like a dash (server checks it the same way).
+		dashMotion(root, aim)
+	else
+		effects.PlaySweep(root, aim)
+	end
 end
 
 -- Same rule as the server's Geometry.ClearDistance: only the arena's
@@ -196,7 +212,10 @@ local function dash()
 	local dir = flat(humanoid.MoveDirection) or flat(root.CFrame.LookVector) or Vector3.new(0, 0, -1)
 	predictedCooldowns.dash = workspace:GetServerTimeNow() + Prototype.Dash.CooldownSec
 	network.Send("dash", { moveDirection = dir })
+	dashMotion(root, dir)
+end
 
+function dashMotion(root: BasePart, dir: Vector3)
 	-- Constant planar velocity, cut short in front of the first wall so the
 	-- character never grinds into Collision (that contact could launch it
 	-- upward). Gravity still applies; the force is sized to the body.
@@ -253,13 +272,14 @@ end
 
 function CombatController.Start()
 	network.OnResult(function(result, action)
-		-- claim_quest errors are shown by QuestController, apply_seal by SealController.
-		if result.ok or action == "ready" or action == "claim_quest" or action == "apply_seal" then
+		-- claim_quest errors are shown by QuestController, apply_seal by SealController,
+		-- choose_class by ClassController.
+		if result.ok or action == "ready" or action == "claim_quest" or action == "apply_seal" or action == "choose_class" then
 			return
 		end
 		if action == "dash" or action == "cast_skill" then
 			-- Server is the authority; fall back to its snapshot cooldowns.
-			predictedCooldowns[if action == "dash" then "dash" else Prototype.Skill.Id] = nil
+			predictedCooldowns[if action == "dash" then "dash" else kit().skill.id] = nil
 		end
 		local text = REJECT_TEXT[result.code] or result.code
 		if action == "transform" and result.code == "NOT_READY" then

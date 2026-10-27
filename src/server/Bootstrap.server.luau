@@ -24,6 +24,7 @@ local SealService = require(Services.SealService)
 local BossService = require(Services.BossService)
 local TargetService = require(Services.TargetService)
 local EncounterService = require(Services.EncounterService)
+local ClassService = require(Services.ClassService)
 
 SceneService.Init()
 NetworkService.Init()
@@ -39,6 +40,7 @@ CombatService.Init({
 	PlayerState = PlayerStateService,
 	Enemies = TargetService,
 	Movement = MovementService,
+	Profiles = ProfileService,
 })
 SpiritService.Init({ Network = NetworkService, PlayerState = PlayerStateService })
 ZoneService.Init()
@@ -73,7 +75,8 @@ EncounterService.Init({
 	Rewards = RewardService,
 	Quests = QuestService,
 })
-NpcService.Init({ Quests = QuestService, PlayerState = PlayerStateService, Seals = SealService })
+ClassService.Init({ Network = NetworkService, Profiles = ProfileService, PlayerState = PlayerStateService, Quests = QuestService })
+NpcService.Init({ Quests = QuestService, PlayerState = PlayerStateService, Seals = SealService, Classes = ClassService })
 
 SceneService.Start() -- courtyard + Mistwood + village
 ZoneService.Start() -- needs the arena root
@@ -91,6 +94,7 @@ PlotService.Start()
 QuestService.Start() -- after PlayerStateService so profiles exist on join
 SealService.Start() -- after Combat/Reward/Quest so their hooks exist
 EncounterService.Start() -- takes the boss over from its auto-engage
+ClassService.Start()
 NpcService.Start() -- needs the scene root
 -- Remotes start listening last, once every handler is registered.
 NetworkService.Start()
@@ -121,5 +125,6 @@ if game:GetService("RunService"):IsStudio() then
 		require(script.Parent.Tests.BossRulesTest).Run()
 		require(script.Parent.Tests.EncounterRulesTest).Run()
 		require(script.Parent.Tests.PersistenceTest).Run()
+		require(script.Parent.Tests.ClassesTest).Run()
 	end)
 end

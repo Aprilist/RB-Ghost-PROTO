@@ -65,6 +65,12 @@ Npcs.npc_shrine_keeper = npc("npc_shrine_keeper", "ผู้ดูแลศา�
 	"ผีส่วนใหญ่ไม่ได้ชั่วร้าย พวกมันแค่หลงทาง",
 })
 
+-- M4 class trainer: on the lawn beside the village spawn, facing it, so a
+-- new player sees them first. Talking opens the class menu.
+Npcs.npc_trainer = npc("npc_trainer", "ครูฝึกวิชา", V.spawn.x + 12, V.spawn.z + 4, 270, Color3.fromRGB(58, 58, 72), {
+	"ลองวิชาให้ครบก่อน แล้วค่อยเลือกทางของเจ้า",
+})
+
 local sx, sz, sa = atStall("smith")
 Npcs.npc_smith = npc("npc_smith", "ช่างตีดาบ", sx, sz, sa, Color3.fromRGB(96, 70, 56), {
 	"ดาบฝึกหัดเล่มนั้นยังใช้ได้อีกนาน",

@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Definitions = ReplicatedStorage.Shared.Definitions
+local Classes = require(Definitions.Classes)
 local Items = require(Definitions.Items)
 local Progression = require(Definitions.Progression)
 local Project = require(Definitions.Project)
@@ -133,6 +134,9 @@ function ProfileRules.Validate(profile: ProfileV1): (boolean, string?)
 	end
 	if not finiteInRange(profile.revision, 0, math.huge - 1) then
 		return false, "revision"
+	end
+	if type(profile.classId) ~= "string" or Classes.Get(profile.classId) == nil then
+		return false, "classId"
 	end
 	if not finiteInRange(profile.level, 1, ProfileRules.LevelCap) then
 		return false, "level"
