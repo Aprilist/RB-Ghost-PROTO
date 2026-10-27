@@ -88,8 +88,14 @@ local function zoneAt(pos: Vector3): string?
 	return nil
 end
 
+-- Invisible outer walls from Scene/Regions (MistwoodWest, VillageSouth, …) and
+-- the courtyard's own bounds. VillageSouth runs across the end of the north
+-- road on purpose: the road stops at a roped-off torii, the wall is the world's edge.
 local function isBound(p: BasePart): boolean
-	return p.Transparency >= 1 and string.find(p.Name, "Bound") ~= nil
+	if p.Transparency < 1 then
+		return false
+	end
+	return string.find(p.Name, "Bound") ~= nil or string.match(p.Name, "^Village%u") ~= nil or string.match(p.Name, "^Mistwood%u") ~= nil
 end
 
 -- X/Z corners of plot `plot` (fence line).

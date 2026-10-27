@@ -51,6 +51,9 @@ local messageLabel: TextLabel
 local rows: { [string]: { button: TextButton, state: TextLabel } } = {}
 local openNpcId: string? = nil
 local pending: string? = nil
+-- The seal whose price the player has been shown and must confirm (M2-E:
+-- the first press shows the price, the second sends apply_seal).
+local confirming: string? = nil
 
 local function make(className: string, parent: Instance, props: { [string]: any }): any
 	local inst = Instance.new(className)
@@ -108,7 +111,7 @@ local function refresh()
 			row.button.Active = false
 		else
 			row.state.Text = string.format("ราคา %d แก่นวิญญาณ%s", def.essenceCost, if p.equippedSealId then " (แทนผนึกเดิม)" else "")
-			row.button.Text = if pending == sealId then "..." else "ผนึก"
+			row.button.Text = if pending == sealId then "..." elseif confirming == sealId then string.format("ยืนยัน -%d", def.essenceCost) else "ผนึก"
 			row.button.BackgroundColor3 = if p.essence >= def.essenceCost then GREEN else GREY
 			row.button.Active = pending == nil
 		end
@@ -119,6 +122,7 @@ local function close()
 	frame.Visible = false
 	openNpcId = nil
 	pending = nil
+	confirming = nil
 end
 
 local function onApply(sealId: string)
@@ -126,6 +130,20 @@ local function onApply(sealId: string)
 	if pending or not snapshot then
 		return
 	end
+	if confirming ~= sealId then
+		-- First press: show the price and wait for a second press.
+		local def = Seals[sealId]
+		confirming = sealId
+		setMessage(string.format(
+			"ใช้แก่นวิญญาณ %d ผนึก%s%s กดปุ่มอีกครั้งเพื่อยืนยัน",
+			def.essenceCost,
+			def.displayNameTH,
+			if snapshot.profile.equippedSealId then " (ผนึกเดิมจะหลุด)" else ""
+		))
+		refresh()
+		return
+	end
+	confirming = nil
 	pending = sealId
 	setMessage("")
 	refresh()
@@ -274,6 +292,7 @@ function SealController.Start(deps: Network)
 	network.OnSealMenu(function(event)
 		openNpcId = event.npcId
 		pending = nil
+		confirming = nil
 		titleLabel.Text = event.speakerTH .. " — ผนึกดาบ"
 		setMessage("")
 		refresh()

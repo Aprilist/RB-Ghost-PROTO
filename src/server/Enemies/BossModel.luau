@@ -80,8 +80,8 @@ function BossModel.Build(at: CFrame): Built
 	local lantern = place("StaffLantern", Vector3.new(3.2, 4, 3.2), 21.5, 7.6, -3.6, VisualPalette.BossLanternDim, Enum.Material.SmoothPlastic)
 	table.insert(tints, { part = lantern, calm = VisualPalette.BossLanternDim, angry = VisualPalette.Ember })
 	for _, h in { 19.4, 23.6 } do
-		place("StaffRim", Vector3.new(0.4, 3.6, 3.6), h, 7.6, -3.6, VisualPalette.LanternWood, Enum.Material.Wood, Enum.PartType.Cylinder).CFrame =
-			at * CFrame.new(7.6, h - up, -3.6) * Models.UPRIGHT
+		local rim = place("StaffRim", Vector3.new(0.4, 3.6, 3.6), h, 7.6, -3.6, VisualPalette.LanternWood, Enum.Material.Wood, Enum.PartType.Cylinder)
+		rim.CFrame = at * CFrame.new(7.6, h - up, -3.6) * Models.UPRIGHT
 	end
 	local glow = Instance.new("PointLight")
 	glow.Color = VisualPalette.Ember
