@@ -135,7 +135,7 @@ local function onApply(sealId: string)
 		local def = Seals[sealId]
 		confirming = sealId
 		setMessage(string.format(
-			"ใช้แก่นวิญญาณ %d ผนึก%s%s กดปุ่มอีกครั้งเพื่อยืนยัน",
+			"ใช้แก่นวิญญาณ %d เพื่อ%s%s กดปุ่มอีกครั้งเพื่อยืนยัน",
 			def.essenceCost,
 			def.displayNameTH,
 			if snapshot.profile.equippedSealId then " (ผนึกเดิมจะหลุด)" else ""
