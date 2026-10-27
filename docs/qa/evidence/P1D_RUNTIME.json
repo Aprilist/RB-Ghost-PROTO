@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-27",
+  "place": "Place1",
+  "mode": "Play Solo",
+  "notes": [
+    "Remotes namespace patched to SpiritWardRemotes; owned instances reused.",
+    "Transform tests used runtime-only gauge fixtures, not ten natural kills.",
+    "Command-bar require cache differs from live script cache; final assertions used real remotes and scene attributes.",
+    "All fixtures cleared; no gameplay tuning values changed."
+  ],
+  "network": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"spamCounts\":{\"OK\":1,\"RATE_LIMITED\":24,\"COOLDOWN\":5},\"firstSnapshot\":{\"profile\":{\"essence\":0,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":0,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"hp\":100,\"profileReady\":true},\"revision\":4},\"lastSnapshot\":{\"profile\":{\"essence\":0,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":0,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"hp\":100,\"profileReady\":true},\"revision\":4},\"results\":[{\"ok\":true,\"revision\":3,\"code\":\"OK\",\"requestId\":\"codex-2715742-ready\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-y\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-mag\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-nan\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-extra\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-str\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-unknown\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-seq\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-zero\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-inf\"},{\"ok\":false,\"revision\":4,\"code\":\"NOT_READY\",\"requestId\":\"codex-2715742-dup\"},{\"ok\":false,\"revision\":4,\"code\":\"NOT_READY\",\"requestId\":\"codex-2715742-dup\"},{\"ok\":false,\"revision\":4,\"code\":\"INVALID_PAYLOAD\",\"requestId\":\"codex-2715742-dup\"},{\"ok\":true,\"revision\":4,\"code\":\"OK\",\"requestId\":\"codex-2715742-spam-1\"},{\"ok\":false,\"revision\":4,\"code\":\"COOLDOWN\",\"requestId\":\"codex-2715742-spam-2\"},{\"ok\":false,\"revision\":4,\"code\":\"COOLDOWN\",\"requestId\":\"codex-2715742-spam-3\"},{\"ok\":false,\"revision\":4,\"code\":\"COOLDOWN\",\"requestId\":\"codex-2715742-spam-4\"},{\"ok\":false,\"revision\":4,\"code\":\"COOLDOWN\",\"requestId\":\"codex-2715742-spam-5\"},{\"ok\":false,\"revision\":4,\"code\":\"COOLDOWN\",\"requestId\":\"codex-2715742-spam-6\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-7\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-8\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-9\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-10\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-11\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-12\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-13\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-14\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-15\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-16\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-17\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-18\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-19\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-20\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-21\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-22\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-23\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-24\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-25\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-26\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-27\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-28\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-29\"},{\"ok\":false,\"revision\":4,\"code\":\"RATE_LIMITED\",\"requestId\":\"codex-2715742-spam-30\"}]}"
+      }
+    ],
+    "isError": false
+  },
+  "combat": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"targetId\":\"lantern_wisp#2\",\"hpAfterRequests\":[40,40,20,0],\"remainingEnemies\":2,\"fx\":[\"slash\",\"slash_hit\",\"enemy_telegraph\",\"enemy_attack\",\"player_hit\",\"slash\",\"slash_hit\",\"slash\",\"soul_orb\",\"enemy_death\",\"slash_hit\"],\"lastSnapshot\":{\"profile\":{\"essence\":5,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":10,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"hp\":90,\"profileReady\":true},\"revision\":6},\"results\":[{\"ok\":true,\"revision\":4,\"code\":\"OK\",\"requestId\":\"hit-2743058-first\"},{\"ok\":true,\"revision\":4,\"code\":\"OK\",\"requestId\":\"hit-2743058-first\"},{\"ok\":true,\"revision\":5,\"code\":\"OK\",\"requestId\":\"hit-2743058-second\"},{\"ok\":true,\"revision\":6,\"code\":\"OK\",\"requestId\":\"hit-2743058-third\"}]}"
+      }
+    ],
+    "isError": false
+  },
+  "transformStart": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"before\":{\"profile\":{\"essence\":10,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":100,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"hp\":90,\"profileReady\":true},\"revision\":20},\"active\":{\"profile\":{\"essence\":10,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":0,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"transformEndsAt\":1793080446.459966,\"hp\":90,\"profileReady\":true},\"revision\":21},\"aura\":true,\"fx\":[\"enemy_telegraph\",\"slash\",\"slash_hit\",\"slash\",\"slash_hit\",\"enemy_attack\",\"player_hit\",\"slash\",\"soul_orb\",\"enemy_death\",\"slash_hit\",\"transform_start\",\"wave\"],\"results\":[{\"ok\":true,\"revision\":18,\"code\":\"OK\",\"requestId\":\"form-2785105-hit1\"},{\"ok\":true,\"revision\":18,\"code\":\"OK\",\"requestId\":\"form-2785105-hit2\"},{\"ok\":true,\"revision\":20,\"code\":\"OK\",\"requestId\":\"form-2785105-hit3\"},{\"ok\":true,\"revision\":21,\"code\":\"OK\",\"requestId\":\"form-2785105-activate\"},{\"ok\":true,\"revision\":21,\"code\":\"OK\",\"requestId\":\"form-2785105-wave\"}]}"
+      }
+    ],
+    "isError": false
+  },
+  "expiry": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"auraStart\":true,\"active\":{\"profile\":{\"essence\":10,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":0,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"transformEndsAt\":1793080512.790876,\"hp\":100,\"profileReady\":true},\"revision\":36},\"elapsed\":12.945071935653687,\"results\":[{\"ok\":true,\"revision\":36,\"code\":\"OK\",\"requestId\":\"expiry-clean-2853.320741400006\"},{\"ok\":true,\"revision\":37,\"code\":\"OK\",\"requestId\":\"expiry-ready-2865.9509818999795\"}],\"auraEnd\":false,\"final\":{\"profile\":{\"essence\":10,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":0,\"alive\":true,\"maxHp\":100,\"cooldowns\":[],\"hp\":100,\"profileReady\":true},\"revision\":38}}"
+      }
+    ],
+    "isError": false
+  },
+  "death": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"deadAura\":false,\"newAura\":false,\"hp\":100,\"respawned\":true}"
+      }
+    ],
+    "isError": false
+  },
+  "dashWall": {
+    "content": [
+      {
+        "type": "text",
+        "text": "-18.00628662109375, 4.60595703125, -8.01806640625"
+      }
+    ],
+    "isError": false
+  },
+  "remotePreservation": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"projectFolderReused\":true,\"legacyPreserved\":true,\"eventReused\":true}"
+      }
+    ],
+    "isError": false
+  },
+  "skillCooldown": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[{\"ok\":true,\"revision\":58,\"code\":\"OK\",\"requestId\":\"skill-2926.5176973000052-1\"},{\"ok\":false,\"revision\":58,\"code\":\"COOLDOWN\",\"requestId\":\"skill-2926.5176973000052-2\"}]"
+      }
+    ],
+    "isError": false
+  },
+  "activeKill": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"before\":{\"profile\":{\"essence\":10,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":100,\"alive\":true,\"maxHp\":100,\"cooldowns\":{\"dash\":1793080539.323011,\"blade_sweep\":1793080578.988184},\"hp\":100,\"profileReady\":true},\"revision\":60},\"hp\":[35,10,0],\"after\":{\"profile\":{\"essence\":15,\"classId\":\"blade\"},\"kind\":\"snapshot\",\"session\":{\"spiritGauge\":0,\"alive\":true,\"maxHp\":100,\"cooldowns\":{\"dash\":1793080539.323011,\"blade_sweep\":1793080578.988184},\"transformEndsAt\":1793080587.203849,\"hp\":90,\"profileReady\":true},\"revision\":63},\"results\":[{\"ok\":true,\"revision\":59,\"code\":\"OK\",\"requestId\":\"active-kill-2927.4852879000246ready\"},{\"ok\":true,\"revision\":61,\"code\":\"OK\",\"requestId\":\"active-kill-2927.4852879000246transform\"},{\"ok\":true,\"revision\":61,\"code\":\"OK\",\"requestId\":\"active-kill-2927.4852879000246hit1\"},{\"ok\":true,\"revision\":62,\"code\":\"OK\",\"requestId\":\"active-kill-2927.4852879000246hit2\"},{\"ok\":true,\"revision\":63,\"code\":\"OK\",\"requestId\":\"active-kill-2927.4852879000246hit3\"}]}"
+      }
+    ],
+    "isError": false
+  }
+}

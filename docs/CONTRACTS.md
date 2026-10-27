@@ -1,0 +1,85 @@
+# Shared Contracts v0.2
+
+สถานะ: draft baseline สำหรับเริ่ม content/UX; Codex ต้องทำ CD-01 ให้ตรงกับไฟล์ types ก่อน Claude เริ่ม runtime
+
+## IDs และข้อมูล
+
+stable IDs เป็น lowercase snake_case ไม่ใช้ชื่อภาษาไทยเป็น key:
+
+- class: blade, shade, talisman
+- enemy: lantern_wisp, root_shade, bell_moth, shrine_guard
+- boss: extinguished_keeper
+- zone: last_lantern_village, mistwood, abandoned_shrine
+- seal: ember, ward
+- item เริ่มต้น: training_blade
+- quest: q01_meet_keeper ถึง q05_defeat_keeper
+
+`Definitions/Project.luau` เก็บ defaults ที่มีแล้ว ส่วน catalog ศัตรู/สกิล/เควสต์จะเพิ่มใน CD-01/CD-04 โดยอิงเอกสาร Claude; ยังไม่สร้าง data runtime ซ้ำสองแห่ง
+
+ProfileV1 (persistent): schemaVersion, revision, userId, classId, level, xp, coins, essence, inventory, equippedWeaponId, quests, checkpointId, tutorialCompleted
+
+- inventory เป็น map ของ unique itemInstanceId → {definitionId, upgradeLevel, sealId?}; equippedWeaponId อ้าง instance ID
+- quests เป็น map ของ questId → {status, progress}; status = active/ready/claimed
+- ทุก number ต้อง finite และอยู่ใน range; level 1–10, coins/essence 0–1,000,000; overflow ไม่ grant แบบเงียบ
+- xp เป็น EXP ภายในเลเวลปัจจุบัน ใช้ curve หักทีละขั้นเมื่อเพิ่มเลเวล ที่ cap คง xp = 0
+- revision ใช้เพิ่มทุก authoritative mutation ไม่ใช่ schemaVersion
+- session metadata/fencing อยู่ใน record envelope ฝั่ง server ไม่ส่ง client
+
+SessionState (ไม่ save): hp/maxHp, spiritGauge, transformEndsAt, cooldowns, alive, profileReady, encounterId และตำแหน่ง runtime ใช้ server clock สำหรับ endsAt; client แสดงผ่านเวลาที่ sync กับ server
+
+## Transport
+
+ReplicatedStorage/SpiritWardRemotes มี RemoteEvent สามตัวที่ server สร้าง ใช้ attribute OwnedBy=SpiritWard บน folder/events; reuse เฉพาะของโปรเจกต์ ถ้าชื่อชนของที่ไม่ได้เป็นเจ้าของให้หยุดพร้อม error และเก็บของเดิม ห้ามลบ ReplicatedStorage/Remotes ของผู้ใช้:
+
+1. ActionRequest (client → server): `{requestId, action, payload}`
+2. ActionResult (server → เจ้าของ): `{requestId, ok, code, revision}`
+3. StateEvent (server → client): discriminated payload ตาม kind
+
+requestId เป็น string จำกัด 64 bytes; payload ห้ามส่ง arbitrary nested table; validate เฉพาะ schema ที่ action นั้นอนุญาต cooldown ของ action ไม่แทน network rate limit
+
+| action | payload | เงื่อนไข server | rate limit ตั้งต้น |
+|---|---|---|---|
+| ready | {} | profileReady; initial snapshot; retry ได้ | 1/sec burst 2 |
+| basic_attack | {sequence: integer, aimDirection: Vector3} | alive, range/height/line of sight, cadence; server หา targets | 6/sec burst 6 |
+| cast_skill | {skillId, aimDirection: Vector3} | class owns skill, cooldown, state, geometry | 5/sec burst 5 |
+| dash | {moveDirection: Vector3} | alive, cooldown, movement state, clear path | 3/sec burst 3 |
+| transform | {} | gauge = 100, not active, alive | 1/sec burst 2 |
+| apply_seal | {itemInstanceId, sealId} | ownership, shrine distance, essence | 2/sec burst 2 |
+| claim_quest | {questId} | ready; never previously claimed | 2/sec burst 2 |
+
+ActionResult codes: OK, NOT_READY, INVALID_PAYLOAD, RATE_LIMITED, COOLDOWN, DEAD, OUT_OF_RANGE, NOT_OWNED, INSUFFICIENT_ESSENCE, QUEST_NOT_READY, ALREADY_CLAIMED, CAP_REACHED, INTERNAL_ERROR
+
+Direction contract: รับเฉพาะ Vector3 ที่ finite ทุกแกน, abs(Y) <= 0.01 และ magnitude อยู่ใน [0.99, 1.01] จากนั้น server project ลง X/Z และ normalize อีกครั้ง ปฏิเสธ zero/NaN/Infinity; ผู้เล่นสามารถหมุนโจมตีได้อิสระใน 3D แต่ server ยังบังคับ cadence, range, height และ line of sight ไม่รับ client origin/target list การช่วยเล็งไม่เพิ่มระยะโจมตี
+
+requestId dedupe cache per player TTL 120 sec; identical retries คืนผลเดิม ถ้า ID เดิมแต่ payload ต่างให้ reject domain state ยังต้องป้องกัน claim/upgrade ซ้ำแม้ cache หมดอายุ Upgrade duplicate intent ใช้ expected weapon state/revision ที่ CD-01 จะตรึงก่อน implementation
+
+StateEvent kinds:
+
+- snapshot: `{kind, revision, profile: PublicOwnProfile, session: PublicOwnSession}` ส่งเฉพาะเจ้าของหลัง ready และหลัง authoritative mutation ใน slice
+- combat_fx: `{kind, eventId, actorUserId?, enemyId?, effectId, position}` ส่งภาพเฉพาะผู้ใกล้เหตุการณ์ ไม่แนบ profile
+- encounter: `{kind, encounterId, state, endsAt?}` ส่งผู้เข้าร่วม
+
+snapshot รวมข้อมูลที่ UI ต้องใช้ทั้งหมดใน slice; client ทิ้ง snapshot revision ที่ต่ำกว่าล่าสุด ส่วน session-only changes ใช้ revision เพิ่มด้วยเพื่อรักษาลำดับเดียวกัน ห้ามใช้ revision ของ persisted profile เป็น session fencing token
+
+Client มี local adapter รับ transport เพื่อทำ mock snapshot ได้ แต่ mock ต้องระบุโหมดและห้ามอ้างว่าเชื่อม server สำเร็จ
+
+## Combat, rewards และ death
+
+- Client sequence ใช้ correlate animation ไม่ใช่หลักฐานว่าตีโดน Server คำนวณ 3D hit volume ตามอาวุธ/aimDirection/ตำแหน่งที่ตรวจแล้ว พร้อมความต่างระดับและสิ่งกีดขวาง ไม่ทำ rewind ใน prototype
+- Enemy runtime ID ไม่ซ้ำใน lifetime ของ server; reward ledger key = enemyRuntimeId + userId
+- ศัตรูทั่วไป: reward ส่วนตัวแก่ผู้ที่ทำ damage อย่างน้อย 1 และยัง alive/อยู่ใน zone ภายในระยะ 120 studs ตอนตาย ไม่สน last hit
+- บอส: สมาชิก encounter ที่ยัง alive และทำ damage รวมอย่างน้อย 5% max HP ได้ reward เต็มของตน คนตาย/ออก encounter ไม่มี reward รอบนั้น ยังไม่มี revive
+- Enemy death ใช้ transition ครั้งเดียว RewardService ledger ทำเครื่องหมายใน transaction/queue เดียวกับ grant ก่อนปล่อย event ต่อ
+- death ผู้เล่นล้าง gauge/transform; เกิด checkpoint 3 วินาที; cooldown ไม่ reset เพื่อใช้หลบข้อจำกัด
+- all boss participants dead/left → reset HP/state/adds หลัง 5 วินาที; normal enemies respawn 8 วินาทีหลังตายและไม่ซ้ำ runtime ID
+- reward/save ไม่รับประกันข้าม server crash ก่อน persistence; no trading ใน scope นี้
+
+## Definition schema ที่ Claude ออกแบบใน Markdown
+
+Enemy: id, displayNameTH, zoneId, level, maxHp, contact/attackDamage, telegraphSec, recoverSec, attackRangeStuds, detectionRangeStuds, moveSpeedStudsSec, respawnSec, xpReward, coinReward, essenceReward, gaugeReward, behaviorNotes
+
+Skill: id, classId, displayNameTH, cooldownSec, rangeStuds, hitShape, damageMultiplier, windupSec, recoverySec, effectNotes
+
+Quest: id, titleTH, prerequisiteQuestId?, objectiveType, targetId, targetCount, rewardXp, rewardCoins, rewardEssence, dialogueStart, dialogueComplete, repeatable
+
+หากค่าใหม่จำเป็นให้เสนอใน decision log อย่าเปลี่ยน field name เงียบ ๆ
