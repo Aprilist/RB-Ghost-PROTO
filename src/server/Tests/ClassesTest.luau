@@ -19,7 +19,7 @@ local SKY = Vector3.new(0, 5000, 0)
 
 local cases: { Case } = {
 	{
-		name = "three classes with Thai names; samurai and ninja open, onmyoji not yet",
+		name = "three classes with Thai names, all open",
 		run = function()
 			local names = {}
 			for _, c in Classes.List do
@@ -31,7 +31,7 @@ local cases: { Case } = {
 				and Classes.Get("talisman").displayNameTH == "องเมียวจิ"
 				and Classes.Get("blade").available
 				and Classes.Get("shade").available
-				and not Classes.Get("talisman").available
+				and Classes.Get("talisman").available
 			return ok, table.concat(names, " ")
 		end,
 	},
@@ -76,6 +76,21 @@ local cases: { Case } = {
 				and n.skill.hitShape == "line"
 				and n.skill.rangeStuds == Prototype.Dash.DistanceStuds
 			return ok, string.format("dps %.1f vs %.1f", dpsN, dpsS)
+		end,
+	},
+	{
+		name = "onmyoji hits from about 3x samurai reach at lower damage per second; E is a circle ahead",
+		run = function()
+			local s, o = Classes.Kit("blade"), Classes.Kit("talisman")
+			local dpsS = s.basicDamage / s.basicIntervalSec
+			local dpsO = o.basicDamage / o.basicIntervalSec
+			local ok = o.basicShape == "bolt"
+				and o.basicReachStuds >= s.basicReachStuds * 3
+				and dpsO < dpsS
+				and o.skill.hitShape == "circle"
+				and (o.skill.radiusStuds or 0) > 0
+				and o.skill.rangeStuds > (o.skill.radiusStuds or 0)
+			return ok, string.format("reach %d vs %d, dps %.1f vs %.1f", o.basicReachStuds, s.basicReachStuds, dpsO, dpsS)
 		end,
 	},
 	{

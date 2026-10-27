@@ -11,6 +11,7 @@ local TweenService = game:GetService("TweenService")
 
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
+local Skills = require(ReplicatedStorage.Shared.Definitions.Skills)
 local VisualPalette = require(ReplicatedStorage.Shared.Definitions.VisualPalette)
 
 local SOUNDS = {
@@ -124,6 +125,28 @@ function EffectsController.PlayWave(root: BasePart, aim: Vector3)
 	sound(SOUNDS.sweep, root.Position, 1.15)
 end
 
+-- M4 onmyoji: a paper talisman streak along the aim (placeholder look).
+local TALISMAN_PAPER = Color3.fromRGB(250, 238, 200)
+local TALISMAN_INK = Color3.fromRGB(196, 52, 46)
+
+local function bolt(from: Vector3, aim: Vector3, length: number)
+	local cf = CFrame.lookAt(from, from + aim) * CFrame.new(0, 0.5, -length / 2)
+	fadePart(Vector3.new(0.5, 0.1, length), cf, TALISMAN_PAPER, 0.16, nil, Vector3.new(0.2, 0.1, length), 0.2)
+	fadePart(Vector3.new(0.12, 0.12, length), cf, TALISMAN_INK, 0.12, nil, nil, 0.3)
+end
+
+local function sealCircle(centre: Vector3, radius: number)
+	local feet = CFrame.new(centre - Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	local d = radius * 2
+	fadePart(Vector3.new(0.15, d * 0.4, d * 0.4), feet, TALISMAN_INK, 0.45, Enum.PartType.Cylinder, Vector3.new(0.15, d, d), 0.45)
+	fadePart(Vector3.new(0.18, d, d), feet, TALISMAN_PAPER, 0.5, Enum.PartType.Cylinder, nil, 0.7)
+end
+
+function EffectsController.PlayBolt(root: BasePart, aim: Vector3, length: number)
+	bolt(root.Position, aim, length)
+	sound(SOUNDS.swing, root.Position, 1.5)
+end
+
 function EffectsController.PlayDash(root: BasePart)
 	fadePart(Vector3.new(2, 4, 0.4), root.CFrame, PLAYER_BLUE, 0.25, nil, nil, PLAYER_FX_ALPHA)
 end
@@ -206,6 +229,13 @@ local function onFx(event: Contracts.CombatFxEvent)
 	elseif id == "sweep" and event.actorUserId ~= me then
 		local d = Prototype.Skill.ReachStuds * 2
 		fadePart(Vector3.new(0.2, 2, 2), CFrame.new(event.position) * CFrame.Angles(0, 0, math.rad(90)), PLAYER_BLUE, 0.3, Enum.PartType.Cylinder, Vector3.new(0.2, d, d), 0.55)
+	elseif id == "talisman_bolt" and event.actorUserId ~= me then
+		-- Position is the middle of the throw; no aim in combat_fx, so a short flash there.
+		fadePart(Vector3.new(0.6, 0.1, 3), CFrame.new(event.position), TALISMAN_PAPER, 0.16, nil, nil, 0.2)
+	elseif id == "talisman_seal" then
+		-- Drawn from the server for everyone, the caster too: the centre is where the server put it.
+		sealCircle(event.position, Skills.talisman_seal.radiusStuds or 8)
+		sound(SOUNDS.telegraph, event.position, 1.6)
 	elseif id == "dash" and event.actorUserId ~= me then
 		fadePart(Vector3.new(2, 4, 0.4), CFrame.new(event.position), PLAYER_BLUE, 0.25, nil, nil, PLAYER_FX_ALPHA)
 	elseif id == "enemy_telegraph" then

@@ -23,6 +23,7 @@ type Effects = {
 	PlaySweep: (BasePart, Vector3) -> (),
 	PlayDash: (BasePart) -> (),
 	PlayWave: (BasePart, Vector3) -> (),
+	PlayBolt: (BasePart, Vector3, number) -> (),
 }
 type Banner = { ShowAction: (string) -> () }
 
@@ -155,6 +156,8 @@ local function basicAttack()
 	face(root, aim)
 	if transformed then
 		effects.PlayWave(root, aim)
+	elseif k.basicShape == "bolt" then
+		effects.PlayBolt(root, aim, k.basicReachStuds)
 	else
 		effects.PlaySwing(root, aim, comboStep)
 	end
@@ -180,6 +183,8 @@ local function castSkill()
 	if skill.hitShape == "line" then
 		-- Ninja dash strike: moves exactly like a dash (server checks it the same way).
 		dashMotion(root, aim)
+	elseif skill.hitShape == "circle" then
+		-- Onmyoji seal: the circle is drawn from the server's combat_fx.
 	else
 		effects.PlaySweep(root, aim)
 	end

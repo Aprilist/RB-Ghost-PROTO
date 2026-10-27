@@ -196,7 +196,10 @@ local cases: { Case } = {
 				if s.id ~= id or Classes.Get(s.classId) == nil then
 					return false, id
 				end
-				local shapeOk = if s.hitShape == "line" then positive(s.widthStuds or 0) else s.arcDeg > 0 and s.arcDeg <= 360
+				local shapeOk = if s.hitShape == "line"
+					then positive(s.widthStuds or 0)
+					elseif s.hitShape == "circle" then positive(s.radiusStuds or 0)
+					else s.arcDeg > 0 and s.arcDeg <= 360
 				if not (positive(s.cooldownSec) and positive(s.rangeStuds) and positive(s.damageMultiplier)) or not shapeOk then
 					return false, id .. " values"
 				end

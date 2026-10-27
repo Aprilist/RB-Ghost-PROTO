@@ -11,10 +11,13 @@ export type SkillDef = {
 	cooldownSec: number,
 	rangeStuds: number,
 	-- "sector" round the player; "line" = dash forward rangeStuds and hit a
-	-- strip widthStuds wide along the path (M4 ninja).
-	hitShape: "sector" | "line",
+	-- strip widthStuds wide along the path (M4 ninja); "bolt" = the nearest
+	-- one target in a narrow sector (M4 onmyoji); "circle" = every target
+	-- within radiusStuds of a point rangeStuds ahead (M4 onmyoji).
+	hitShape: "sector" | "line" | "bolt" | "circle",
 	arcDeg: number,
 	widthStuds: number?,
+	radiusStuds: number?,
 	damageMultiplier: number,
 	windupSec: number,
 	recoverySec: number,
@@ -89,6 +92,37 @@ local Skills: { [string]: SkillDef } = {
 		windupSec = 0,
 		recoverySec = 0,
 		effectNotes = "พุ่งไปข้างหน้า ฟันทุกตัวตามแนวที่ผ่าน",
+	},
+	-- M4 onmyoji (draft numbers): ranged single target at lower damage per
+	-- second (18 / 0.6 s = 30) than melee (40) to pay for the range; the skill
+	-- is an area seal placed ahead. Pinning enemies in place comes with the
+	-- full class pass.
+	talisman_basic = {
+		id = "talisman_basic",
+		classId = "talisman",
+		displayNameTH = "ยันต์พุ่ง",
+		cooldownSec = 0.6,
+		rangeStuds = 22,
+		hitShape = "bolt",
+		arcDeg = 16,
+		damageMultiplier = 0.9,
+		windupSec = 0,
+		recoverySec = 0,
+		effectNotes = "ปายันต์ไปโดนตัวที่ใกล้ที่สุดในแนวเล็ง",
+	},
+	talisman_seal = {
+		id = "talisman_seal",
+		classId = "talisman",
+		displayNameTH = "เขตยันต์ตรึง",
+		cooldownSec = 6,
+		rangeStuds = 14, -- centre of the circle, cut short by walls
+		hitShape = "circle",
+		arcDeg = 360,
+		radiusStuds = 8,
+		damageMultiplier = 1.5,
+		windupSec = 0,
+		recoverySec = 0,
+		effectNotes = "วางวงยันต์ข้างหน้า ทุกตัวในวงโดน",
 	},
 }
 

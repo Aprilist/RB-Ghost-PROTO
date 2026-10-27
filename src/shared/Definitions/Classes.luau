@@ -3,6 +3,8 @@
 -- so saved profiles keep working; players see the Thai names. Each class
 -- names its basic attack and E skill in Definitions/Skills. Damage is the
 -- weapon's baseDamage × the skill's damageMultiplier, as for the samurai.
+-- All three are playable with a draft kit; art, animation and a full skill
+-- set come with the full class pass.
 -- Classes are switched freely at the trainer NPC for now (GAME_DESIGN: try
 -- classes before choosing); the level-10 trial comes later.
 
@@ -26,6 +28,7 @@ export type Kit = {
 	basicIntervalSec: number,
 	basicReachStuds: number,
 	basicArcDeg: number,
+	basicShape: "sector" | "line" | "bolt" | "circle",
 	skill: Skills.SkillDef,
 	skillDamage: number,
 }
@@ -54,10 +57,10 @@ Classes.List = table.freeze({
 	table.freeze({
 		id = "talisman",
 		displayNameTH = "องเมียวจิ",
-		descriptionTH = "ยันต์และเครื่องราง โจมตีระยะไกล (เร็ว ๆ นี้)",
-		basicSkillId = "blade_basic",
-		activeSkillId = "blade_sweep",
-		available = false,
+		descriptionTH = "ยันต์ ปาไกลทีละตัว สกิล E วางวงยันต์ข้างหน้า โดนทุกตัวในวง",
+		basicSkillId = "talisman_basic",
+		activeSkillId = "talisman_seal",
+		available = true,
 	}),
 }) :: { ClassDef }
 
@@ -87,6 +90,7 @@ function Classes.Kit(classId: string): Kit
 			basicIntervalSec = basic.cooldownSec,
 			basicReachStuds = basic.rangeStuds,
 			basicArcDeg = basic.arcDeg,
+			basicShape = basic.hitShape,
 			skill = skill,
 			skillDamage = weapon.baseDamage * skill.damageMultiplier,
 		})

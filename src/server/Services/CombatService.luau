@@ -2,7 +2,8 @@
 -- Server-authoritative P1 combat: basic 3-step combo (a wave while
 -- transformed), the class E skill and dash. M4: reach, cadence, damage and
 -- the E skill come from the player's class (Definitions/Classes); the
--- samurai's numbers are the P1 ones.
+-- samurai's numbers are the P1 ones. Shapes: sector (samurai), dash strip
+-- (ninja E), nearest-target bolt and circle ahead (onmyoji).
 -- The client sends only intent (sequence/aim/move direction). Hits are
 -- found here from the real character position with reach, arc, height band
 -- and line of sight; the client never names targets or damage.
@@ -71,17 +72,29 @@ function CombatService.OnBasicHit(callback: (Player, { string }) -> ())
 	table.insert(basicHitListeners, callback)
 end
 
--- Applies `damage` to every live enemy in the sector; returns the runtime ids
--- that took damage.
-local function strike(player: Player, origin: Vector3, aim: Vector3, reach: number, arcDeg: number, damage: number): { string }
-	local hit: { string } = {}
+-- Applies `damage` to every live enemy in the sector (only the nearest one
+-- when `nearestOnly`, M4 onmyoji bolt); returns the runtime ids that took
+-- damage.
+local function strike(player: Player, origin: Vector3, aim: Vector3, reach: number, arcDeg: number, damage: number, nearestOnly: boolean?): { string }
+	local targets: { EnemyRecord } = {}
+	local nearest: EnemyRecord?, nearestDist = nil, math.huge
 	for _, enemy in enemies.GetAlive() do
-		local target = enemy.body.Position
-		if Geometry.InSector(origin, aim, target, reach, arcDeg, enemy.bodyRadius) then
-			if enemies.Damage(enemy.id, damage, player) then
-				table.insert(hit, enemy.id)
-				network.EmitFx("slash_hit", target, player.UserId, enemy.id)
+		if Geometry.InSector(origin, aim, enemy.body.Position, reach, arcDeg, enemy.bodyRadius) then
+			table.insert(targets, enemy)
+			local d = (enemy.body.Position - origin).Magnitude
+			if d < nearestDist then
+				nearest, nearestDist = enemy, d
 			end
+		end
+	end
+	if nearestOnly then
+		targets = if nearest then { nearest } else {}
+	end
+	local hit: { string } = {}
+	for _, enemy in targets do
+		if enemies.Damage(enemy.id, damage, player) then
+			table.insert(hit, enemy.id)
+			network.EmitFx("slash_hit", enemy.body.Position, player.UserId, enemy.id)
 		end
 	end
 	return hit
@@ -111,6 +124,9 @@ local function basicAttack(player: Player, payload: { [string]: any }): ResultCo
 		local S = Prototype.Spirit
 		network.EmitFx("wave", root.Position + aim * (S.TransformAttackReachStuds / 2), player.UserId, nil)
 		hit = strike(player, root.Position, aim, S.TransformAttackReachStuds, S.TransformAttackArcDeg, S.TransformAttackDamage)
+	elseif kit.basicShape == "bolt" then
+		hit = strike(player, root.Position, aim, kit.basicReachStuds, kit.basicArcDeg, kit.basicDamage, true)
+		network.EmitFx("talisman_bolt", root.Position + aim * (kit.basicReachStuds / 2), player.UserId, nil)
 	else
 		network.EmitFx("slash", root.Position + aim * 3, player.UserId, nil)
 		hit = strike(player, root.Position, aim, kit.basicReachStuds, kit.basicArcDeg, kit.basicDamage)
@@ -157,6 +173,12 @@ local function castSkill(player: Player, payload: { [string]: any }): ResultCode
 		local allowed = movement.BeginDash(player, aim)
 		network.EmitFx("dash", origin + aim * (allowed / 2), player.UserId, nil)
 		strikeLine(player, origin, aim, allowed, skill.widthStuds or 4, kit.skillDamage)
+	elseif skill.hitShape == "circle" then
+		-- Onmyoji seal: a circle ahead, its centre stopped short of walls.
+		local radius = skill.radiusStuds or 6
+		local centre = root.Position + aim * Geometry.ClearDistance(root.Position, aim, skill.rangeStuds, 1)
+		network.EmitFx("talisman_seal", centre, player.UserId, nil)
+		strike(player, centre, aim, radius, 360, kit.skillDamage)
 	else
 		network.EmitFx("sweep", root.Position + aim * 2, player.UserId, nil)
 		strike(player, root.Position, aim, skill.rangeStuds, skill.arcDeg, kit.skillDamage)
