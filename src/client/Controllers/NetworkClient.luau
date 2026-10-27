@@ -17,6 +17,8 @@ local latestSnapshot: Contracts.SnapshotEvent? = nil
 local resultListeners: { (Contracts.ActionResult, string) -> () } = {}
 local snapshotListeners: { (Contracts.SnapshotEvent) -> () } = {}
 local fxListeners: { (Contracts.CombatFxEvent) -> () } = {}
+local dialogueListeners: { (Contracts.DialogueEvent) -> () } = {}
+local noticeListeners: { (Contracts.NoticeEvent) -> () } = {}
 local pendingActions: { [string]: string } = {}
 local readyOk = false
 
@@ -47,6 +49,14 @@ function NetworkClient.OnFx(callback: (Contracts.CombatFxEvent) -> ())
 	table.insert(fxListeners, callback)
 end
 
+function NetworkClient.OnDialogue(callback: (Contracts.DialogueEvent) -> ())
+	table.insert(dialogueListeners, callback)
+end
+
+function NetworkClient.OnNotice(callback: (Contracts.NoticeEvent) -> ())
+	table.insert(noticeListeners, callback)
+end
+
 function NetworkClient.GetSnapshot(): Contracts.SnapshotEvent?
 	return latestSnapshot
 end
@@ -74,6 +84,14 @@ local function onState(event: Contracts.StateEvent)
 		end
 	elseif event.kind == "combat_fx" then
 		for _, callback in fxListeners do
+			task.spawn(callback, event)
+		end
+	elseif event.kind == "dialogue" then
+		for _, callback in dialogueListeners do
+			task.spawn(callback, event)
+		end
+	elseif event.kind == "notice" then
+		for _, callback in noticeListeners do
 			task.spawn(callback, event)
 		end
 	end

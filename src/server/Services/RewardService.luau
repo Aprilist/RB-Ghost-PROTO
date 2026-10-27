@@ -51,6 +51,7 @@ local profiles: Profiles
 local enemies: Enemies
 local zones: Zones
 local ledger: { [string]: boolean } = {}
+local grantedListeners: { (Player, string) -> () } = {}
 
 local function grant(player: Player, defeat: Defeat, enemyZoneId: string?)
 	local key = defeat.enemyId .. ":" .. player.UserId
@@ -94,6 +95,15 @@ local function grant(player: Player, defeat: Defeat, enemyZoneId: string?)
 	if levelsGained > 0 then
 		network.EmitFx("level_up", root.Position, player.UserId, nil)
 	end
+	-- After the grant committed, once per ledger key (M2-D quest kills).
+	for _, callback in grantedListeners do
+		task.spawn(callback, player, defeat.definitionId)
+	end
+end
+
+-- Hears each reward actually granted: (player, enemy definition id).
+function RewardService.OnGranted(callback: (Player, string) -> ())
+	table.insert(grantedListeners, callback)
 end
 
 local function onDefeated(defeat: Defeat)

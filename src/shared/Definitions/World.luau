@@ -100,6 +100,13 @@ return table.freeze({
 			{ x = 50, z = 292, enemy = "hitodama" },
 			{ x = -12, z = 284, enemy = "hitodama" },
 		}),
+		-- M2-D q03 pickups (veil traces), each inside an enemy spawn clearing,
+		-- which the tree scatter keeps clear for 11 studs round the spawn.
+		veilTraces = table.freeze({
+			{ x = -48, z = 172 }, -- karakasa clearing by the first bend
+			{ x = -56, z = 240 }, -- west kodama clearing
+			{ x = 40, z = 242 }, -- east kodama clearing, away from the fallen log
+		}),
 	}),
 
 	Village = table.freeze({

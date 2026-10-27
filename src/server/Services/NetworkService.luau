@@ -23,6 +23,7 @@ local SCHEMAS: { [string]: { [string]: FieldKind } } = {
 	cast_skill = { skillId = "string", aimDirection = "direction" },
 	dash = { moveDirection = "direction" },
 	transform = {},
+	claim_quest = { questId = "string" },
 }
 
 type Bucket = { tokens: number, at: number }

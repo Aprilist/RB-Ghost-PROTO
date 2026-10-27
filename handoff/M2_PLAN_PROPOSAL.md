@@ -39,7 +39,7 @@
 | **M2-A Foundation** (ส่ง source แล้ว 27 ต.ค., ดู `docs/qa/M2A_RESULTS.md`) | catalog ข้อมูล (enemy/skill/quest/zone/item/seal) ตาม schema ใน CONTRACTS, memory profile แบบ ProfileV1, RewardService แยก EXP/coins/essence + level, zone framework (หลายพื้นที่ใน place เดียว, checkpoint ต่อ zone) | แทบไม่มี: loop เดิมต้องเล่นได้เหมือนเดิม + HUD แสดงเลเวล/EXP | Codex รับ schema |
 | M2-B World greybox | หมู่บ้าน (ผู้ดูแลศาล, ศาลผนึก), ป่าม่านหมอก, ศาลเจ้าร้าง (ต่อจาก VB-01), ทางเชื่อม/landmark | เดินทั้งเส้นทาง กล้องไม่ติด รู้ทางไปต่อ | M2-A |
 | M2-C ศัตรูใหม่ 3 ชนิด | root_shade (เตี้ย กว้าง ตีแรงช้า), bell_moth (เร็ว บินวน), shrine_guard (สูง ยันต์รอบแขน); AI อ้อมสิ่งกีดขวางด้วย waypoint | อ่านท่าเตือนแต่ละตัวออก ความยากพอดี | M2-A, M2-B |
-| M2-D เควสต์ + NPC | QuestService จาก domain events, claim_quest, dialogue, quest tracker | ทำ q01–q04 ได้เองโดยไม่ต้องบอก | M2-A, M2-B |
+| **M2-D เควสต์ + NPC** (ส่ง source แล้ว 27 ต.ค., ดู `docs/qa/M2D_RESULTS.md`) | QuestService จาก domain events, claim_quest, dialogue, quest tracker | ทำ q01–q04 ได้เองโดยไม่ต้องบอก | M2-A, M2-B |
 | M2-E อาวุธ + ผนึก | InventoryService, apply_seal ที่ศาล, ember (burn ไม่ซ้อน), ward (shield มี cooldown), หน้ายืนยันราคา | ผนึกสองแบบรู้สึกต่างกัน | DEC-008 ต้องปิดก่อน |
 | M2-F บอส | extinguished_keeper 3 ท่า, encounter arena (เปิดรับ/ล็อก/reset 5 วิ), รางวัลเกณฑ์ 5% | สู้ 2–4 นาที solo ไม่ยาก/ง่ายเกิน | M2-C |
 | M2-G Integration | ACCEPTANCE M2 ทุกข้อ, 1/2/8 ผู้เล่น, touch, รายงานผล | เล่นจบทั้ง slice | ทุก batch |

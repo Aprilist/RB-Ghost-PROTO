@@ -1,5 +1,5 @@
 --!strict
--- Example packets for P1 and M2-A. Reference only; nothing requires this at runtime.
+-- Example packets for P1, M2-A and M2-D. Reference only; nothing requires this at runtime.
 local Contracts = require(script.Parent.Contracts)
 
 local basicAttack: Contracts.ActionRequest = {
@@ -24,7 +24,18 @@ local cooldownResult: Contracts.ActionResult = {
 local snapshot: Contracts.SnapshotEvent = {
 	kind = "snapshot",
 	revision = 18,
-	profile = { classId = "blade", level = 2, xp = 12, xpToNext = 60, coins = 14, essence = 30 },
+	profile = {
+		classId = "blade",
+		level = 2,
+		xp = 12,
+		xpToNext = 60,
+		coins = 14,
+		essence = 30,
+		quests = {
+			q01_meet_keeper = { status = "claimed", progress = 1 },
+			q02_first_hunt = { status = "active", progress = 3 },
+		},
+	},
 	session = {
 		hp = 90,
 		maxHp = 100,
@@ -45,8 +56,25 @@ local hitFx: Contracts.CombatFxEvent = {
 	position = Vector3.new(4, 4, -10),
 }
 
+local claimQuest: Contracts.ActionRequest = {
+	requestId = "c1-000044",
+	action = "claim_quest",
+	payload = { questId = "q02_first_hunt" },
+}
+
+local keeperDialogue: Contracts.DialogueEvent = {
+	kind = "dialogue",
+	npcId = "npc_shrine_keeper",
+	speakerTH = "ผู้ดูแลศาล",
+	lines = { "ดีมาก รู้สึกถึงวิญญาณที่ไหลเข้าดาบไหม" },
+	questId = "q02_first_hunt",
+	claimQuestId = "q02_first_hunt",
+}
+
 return {
 	basicAttack = basicAttack,
+	claimQuest = claimQuest,
+	keeperDialogue = keeperDialogue,
 	dash = dash,
 	cooldownResult = cooldownResult,
 	snapshot = snapshot,

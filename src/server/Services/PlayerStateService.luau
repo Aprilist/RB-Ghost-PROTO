@@ -93,6 +93,10 @@ function PlayerStateService.Commit(player: Player)
 	sessionRevision += 1
 	state.revision = sessionRevision
 	local cooldowns = table.clone(state.cooldowns)
+	local quests = {}
+	for id, record in profile.quests do
+		quests[id] = { status = record.status, progress = record.progress }
+	end
 	network.SendState(player, {
 		kind = "snapshot",
 		revision = state.revision,
@@ -103,6 +107,7 @@ function PlayerStateService.Commit(player: Player)
 			xpToNext = ProfileRules.XpToNext(profile.level),
 			coins = profile.coins,
 			essence = profile.essence,
+			quests = quests,
 		},
 		session = {
 			hp = state.hp,
