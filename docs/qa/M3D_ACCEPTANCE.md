@@ -11,10 +11,27 @@ Claude 27 ต.ค. 2026 | ใช้คู่กับ `docs/ACCEPTANCE.md` ห�
 | 3 | จำลอง load fail แล้วไม่เขียน default ทับ record | (ก) `PersistenceTest` ข้อ 6–8 (MemoryStore `failNext`) · (ข) lease ของ server อื่นยังไม่หมด → Play → หยุด | ไม่เขียนอะไร, client มีทางออก | (ก) 3/3 ผ่าน · (ข) `load failed ... held`, record rev/token เดิมทั้งตอนโหลดและตอนหยุด, client ขึ้น "โหลดข้อมูลตัวละครไม่ได้ ออกแล้วเข้าใหม่อีกครั้ง" | **ผ่าน** (DataStore ล่มกลาง request จริงจำลองใน Studio ไม่ได้ ส่วนนั้นพิสูจน์ด้วย fake เท่านั้น) |
 | 4 | สอง session ใช้ profile พร้อมกันไม่ได้; stale owner ไม่ทับ | Director อยู่ในเกมจากแอป (jobId `e177547e…`) → Studio Play → หยุด → Director แตะ `mistwood_gate` แล้วออก → Studio Play · stale owner: `PersistenceTest` ข้อ 3 · lease หมดอายุ: `session` ของ `dead-server` หมดแล้ว → Play | Studio ได้ held ไม่แตะ record; ออกแล้ว release; lease หมดอายุยึดได้ | Studio `held` ×2, record rev 4 token เดิม · server จริงออก → rev 5 `session=null` `mistwood_gate` · Studio โหลดได้ทันที · lease หมดอายุ → `session.jobId=studio` · stale save → `lease_lost` | **ผ่าน** |
 | 5 | duplicate save/retry, queue ordering, migration, shutdown | `PersistenceTest` ข้อ 9–10, 12–14 · หยุด Play (`BindToClose`) | รวม save, retry ตาม delay, migration ทีละขั้น, ปิดแล้ว save + release | test ผ่านทุกข้อ (142/142 ทั้งชุด) · หยุด Play แล้ว `savedAt` ใหม่ + `session` หาย ทุกรอบ | **ผ่าน** (shutdown ทดสอบกับผู้เล่น 1 คน) |
-| 6 | งบ network, memory, frame time ใน scene ผู้เล่นเต็ม | ค่าฐาน Play solo 20 วิ เดินเข้าป่า (ศัตรู 12 ตัว) | — | server heartbeat เฉลี่ย 16.67 ms แย่สุด 19.1 ms · client frame เฉลี่ย 16.66 ms แย่สุด 27.5 ms · server ส่ง 41 KB/s · memory/receive ของ Play solo ใช้ไม่ได้ (server กับ client อยู่ process เดียว) | **blocked** ต้องมีหลาย client (ดูข้างล่าง) · ข้อความ ACCEPTANCE ยังเขียน 8 คน DEC-007 เป็น 12 รอ Codex |
+| 6 | งบ network, memory, frame time ใน scene ผู้เล่นเต็ม | ค่าฐาน Play solo 20 วิ เดินเข้าป่า (ศัตรู 12 ตัว) | — | server heartbeat เฉลี่ย 16.67 ms แย่สุด 19.1 ms · client frame เฉลี่ย 16.66 ms แย่สุด 27.5 ms · server ส่ง 41 KB/s · memory/receive ของ Play solo ใช้ไม่ได้ (server กับ client อยู่ process เดียว) | **partial** 5 คนผ่าน (ดู "ผล Local Server 5 คน") · 8/12 คนยังไม่ได้วัด · ข้อความ ACCEPTANCE ยังเขียน 8 คน DEC-007 เป็น 12 รอ Codex |
 | 7 | touch จริง ระบุรุ่นเครื่อง | — | — | M2-G วัดใน Device Simulator เท่านั้น | **blocked** ต้องมือถือจริงของ Director |
+
+## ผล Local Server 5 คน (28 ต.ค. 2026, build `89f4ca6`)
+
+Studio → Test → Local Server + 5 players บนเครื่องเดียว (Director เปิด) วัดผ่าน Studio MCP ทั้ง 6 หน้าต่าง · ทุกคนเข้า datastore mode (UserId -1…-5) ไม่มี error · ทั้ง 5 คนเดินจากหมู่บ้าน (z 496) เข้าป่า (z 124–281) พร้อมกัน
+
+| ที่วัด | หมู่บ้าน (ยืนนิ่ง) 25 วิ | ในป่า 20 วิ |
+|---|---|---|
+| server heartbeat เฉลี่ย / แย่สุด | 16.68 / 35.4 ms | 16.67 / 20.0 ms |
+| server ส่งรวม เฉลี่ย / peak | 40.5 / 44.2 KB/s | 44.8 / 50.7 KB/s (≈ 9 KB/s ต่อคน) |
+| server memory | 290 → 321 MB | 443 MB |
+| instance บน server | 62,437 | — |
+
+- **server ไม่ตึง:** heartbeat ไม่หลุด 60 Hz เลย มีแค่ spike 35 ms ครั้งเดียวตอนวัดในหมู่บ้าน
+- **network:** ค่าส่งรวมแทบไม่เพิ่มตามจำนวนคน (คนเดียว 41 KB/s, 5 คน 45 KB/s) ค่า 41 KB/s ตอนเล่นคนเดียวจึงเป็นค่าคงที่ของ world ไม่ได้คิดต่อคน
+- **memory server โต 290 → 443 MB** ตอนผู้เล่นกระจายเข้าป่า ยังไม่รู้ว่าหยุดโตที่เท่าไร ต้องดูนานกว่านี้
+- **ฝั่ง client ใช้ตัวเลขไม่ได้:** 6 หน้าต่างอยู่บนเครื่องเดียว หน้าต่างที่ไม่ได้ focus ถูกจำกัดราว 15 fps (frame ≈ 66 ms) และ `DataReceiveKbps` ใน client ของ Studio อ่านได้ 0
+- **ยังไม่ได้วัด:** ระหว่างสู้ (ไม่มีใครโจมตี) และ 8/12 คน
 
 ## ที่ต้องทำต่อเพื่อปิดข้อ 6–7
 
-- **ข้อ 6:** Studio → Test → Clients and Servers → Local Server + N players (ได้สูงสุด 8 บนเครื่องเดียว) วัดฝั่ง server ด้วย Developer Console (F9 → Memory/Network, Server) · 12 คนจริงต้องเข้าจากหลายเครื่องบน server จริง · ข้อสังเกต: 41 KB/s ต่อผู้เล่นคนเดียวถือว่าสูง ต้องดูว่าโตตามจำนวนผู้เล่นแค่ไหน
+- **ข้อ 6:** วัดซ้ำตอนสู้ และที่ 8 คน (Local Server ได้สูงสุด 8 บนเครื่องเดียว) · 12 คนจริงต้องเข้าจากหลายเครื่องบน server จริง แล้วดู Developer Console (F9 → Server → Memory/Network) · ตาม memory server ว่าหยุดโตไหม
 - **ข้อ 7:** เปิดเกมบนมือถือจริง (เกม private เข้าได้ด้วยบัญชีเจ้าของ) จดรุ่นเครื่อง แล้วเล่น q01–q02 ด้วย touch ดู HUD บังท่าเตือนไหม
