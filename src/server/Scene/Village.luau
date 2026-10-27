@@ -2,12 +2,13 @@
 -- M2-B greybox of the Last Lantern Village (หมู่บ้านโคมสุดท้าย), styled
 -- after a Shirakawa-gō gasshō village in autumn. Oval layout from the
 -- Director's second sketch (27 Oct 2026): an ancient sacred tree on a stone
--- plaza in the middle with market stalls round it, a straight road down each
--- long side, and six player houses with big yards along the outside of each
--- road, facing in. The entrance from the forest forks (a Y) into the two
--- roads, which meet again at the north road. A stone avenue and two lanes cut
--- across the middle so no walk goes all the way round. Paddies to the east,
--- a grove to the west, the keeper's shrine outside the south-east corner.
+-- plaza in the middle with market stalls round it, lawns round that, then a
+-- ring road with one ring of twelve player houses outside it, all facing in,
+-- so every house is seen the same from the plaza. The entrance from the
+-- forest and the north road pass through gaps in the ring. A stone avenue
+-- runs ring road → spawn → plaza, with paved walks from the north, east and
+-- west. Keeper's shrine on the inner lawn, paddies to the east, a grove in
+-- the north-west corner.
 -- Hub only: no enemies, no rewards.
 -- Layout numbers come from Definitions/World; plots are filled at runtime by
 -- PlotService through BuildPlotLocked / BuildPlotHouse.
@@ -24,7 +25,7 @@ local FLOOR_Y = Kit.FloorY
 local SEED = 20261102
 local CENTER = Vector3.new(V.center.x, 0, V.center.z)
 local GATE_HALF = 7 -- plot gate half-width
-local YARD_RADIUS = 32 -- spirit yard in front of each player house (about ten large spirits)
+local YARD_RADIUS = 24 -- spirit yard in front of each player house (shrunk with the plots, 27 Oct 2026)
 local FLOWERS = {
 	Color3.fromRGB(196, 62, 72),
 	Color3.fromRGB(236, 226, 214),
@@ -142,11 +143,12 @@ local function buildGround(f: Folders, rng: Random)
 	-- Stone plaza under the tree, with a darker kerb.
 	stadium(paths, "PlazaKerb", V.plazaHalfX + 1, V.plazaHalfZ + 1, 0.09, P.StoneDark, Enum.Material.Slate)
 	stadium(paths, "Plaza", V.plazaHalfX, V.plazaHalfZ, 0.1, P.PathStone, Enum.Material.Slate)
-	-- Stepping path from the road to every plot gate.
+	-- Stepping path from the ring road to every plot gate.
 	for _, plot in V.plots do
-		local side = math.sign(plot.x)
-		local a = { x = side * (V.roadX + V.roadHalfWidth - 1), z = plot.z }
-		local b = { x = side * (V.plotFrontX + 1), z = plot.z }
+		local h = heading(plot.angle) -- gate direction, toward the road
+		local front = Vector3.new(plot.x, 0, plot.z) + h * V.plotSize.z / 2
+		local pa, pb = front + h * (V.vergeWidth + 1), front - h
+		local a, b = { x = pa.X, z = pa.Z }, { x = pb.X, z = pb.Z }
 		Kit.Strip(paths, "PlotPath", { a, b }, GATE_HALF - 1, 0.07, P.PathStone, Enum.Material.Slate)
 	end
 end
@@ -333,18 +335,12 @@ local function buildLawns(f: Folders, rng: Random)
 	Kit.Label(board, "กระดานเควสต์", 3.5, 60)
 	table.insert(blockers, { bcf.Position.X, bcf.Position.Z, 5 })
 	table.insert(blockers, { V.spawn.x, V.spawn.z, 8 })
-	-- Benches: along the avenue, and on the side lawns facing the tree.
-	for _, z in { 470, 530 } do
-		bench(f, cx - 8, z, cx, z)
-		bench(f, cx + 8, z, cx, z)
-	end
-	for _, side in { -1, 1 } do
-		for _, z in { cz - 46, cz + 46 } do
-			bench(f, side * (V.plazaHalfX + 6), z, cx, z)
-		end
-	end
+	-- Benches along the avenue, between the ring road and the spawn.
+	local benchZ = cz - V.roadRadius + 20
+	bench(f, cx - 8, benchZ, cx, benchZ)
+	bench(f, cx + 8, benchZ, cx, benchZ)
 	-- Maple avenue: a row each side of the stone avenue, clear of the spawn.
-	for z = 440, 580, 28 do
+	for z = cz - V.roadRadius + 12, cz - V.plazaHalfZ - 14, 28 do
 		for _, side in { -1, 1 } do
 			local x = cx + side * 13
 			if isOpen(x, z, 4) then
@@ -353,17 +349,17 @@ local function buildLawns(f: Folders, rng: Random)
 			end
 		end
 	end
-	-- Side lawns between the plaza and the roads, and the lawns between the
-	-- fork arms and the north arms: maples wherever there is room.
+	-- Lawns inside the ring road: maples wherever there is room.
 	local placed = 0
 	for _ = 1, 400 do
 		if placed >= 34 then
 			break
 		end
-		local x = rng:NextNumber(-V.roadX + 6, V.roadX - 6)
-		local z = rng:NextNumber(440, 970)
+		local x = cx + rng:NextNumber(-V.roadRadius, V.roadRadius)
+		local z = cz + rng:NextNumber(-V.roadRadius, V.roadRadius)
 		local scale = rng:NextNumber(1.2, 1.6)
-		if isOpen(x, z, 4 * scale) and math.abs(x) > 18 then
+		local inside = math.sqrt((x - cx) ^ 2 + (z - cz) ^ 2) < V.roadRadius - V.roadHalfWidth - 4 * scale - 2
+		if inside and isOpen(x, z, 4 * scale) and math.abs(x) > 18 then
 			table.insert(blockers, { x, z, 4 * scale })
 			Kit.Maple(f, rng, x, z, scale)
 			placed += 1
@@ -395,26 +391,22 @@ local function buildPond(f: Folders, rng: Random)
 end
 
 local function buildStreetLanterns(f: Folders)
-	-- On the verge between each road and the plot fences, between houses;
-	-- and on the inner side of the roads opposite the gates.
-	local verge = (V.roadX + V.roadHalfWidth + V.plotFrontX) / 2
-	local i = 0
-	for _, z in { 520, 610, 700, 790, 880 } do
-		for _, side in { -1, 1 } do
-			i += 1
-			Kit.StreetLantern(f, side * verge, z, i == 3 or i == 8)
+	-- Inside the ring road opposite every gate, and on the outer verge in the
+	-- gaps between houses (not where the entrance and north road leave).
+	local inner = V.roadRadius - V.roadHalfWidth - 2.5
+	local outer = V.roadRadius + V.roadHalfWidth + V.vergeWidth / 2
+	for k = 0, 11 do
+		local p = onCircle(15 + k * 30, inner)
+		Kit.StreetLantern(f, p.X, p.Z, k == 2 or k == 8)
+		table.insert(blockers, { p.X, p.Z, 2 })
+		if k ~= 0 and k ~= 6 then
+			p = onCircle(k * 30, outer)
+			Kit.StreetLantern(f, p.X, p.Z, false)
 		end
 	end
-	for _, z in { 475, 655, 745, 925 } do
-		for _, side in { -1, 1 } do
-			local x = side * (V.roadX - V.roadHalfWidth - 2.5)
-			Kit.StreetLantern(f, x, z, false)
-			table.insert(blockers, { x, z, 2 })
-		end
-	end
-	-- At the fork, where the entrance splits.
+	-- Either side of the entrance road.
 	for _, side in { -1, 1 } do
-		Kit.StreetLantern(f, side * 9, 412, side > 0)
+		Kit.StreetLantern(f, side * 9, 420, side > 0)
 	end
 end
 
@@ -424,7 +416,7 @@ end
 
 local function buildKeeperShrine(f: Folders)
 	local k = V.keeperShrine
-	-- Outside the south-east corner, front (and torii) toward the fork (west).
+	-- On the inner lawn, front (and torii) toward the avenue (west).
 	local cf = CFrame.new(k.x, 0, k.z) * CFrame.Angles(0, math.pi / 2, 0)
 	local house = Kit.Gassho(f, cf * CFrame.new(0, 0, 4), { width = 16, depth = 13, wallHeight = 6.5, roofHeight = 10, eave = 3, windowRows = 1 })
 	house.Name = "KeeperShrine"
@@ -436,9 +428,11 @@ local function buildKeeperShrine(f: Folders)
 		local lp = (cf * CFrame.new(side * 6.5, 0, -2)).Position
 		ShrineCourtyard.StoneLantern(f.decor, lp.X, lp.Z)
 	end
-	-- Stone path from the shrine torii to the east road's fork arm.
+	-- Stone path from the shrine torii west to the plaza edge.
 	local from = (toriiAt * CFrame.new(0, 0, -2)).Position
-	Kit.Strip(f.decor, "ShrinePath", { { x = from.X, z = from.Z }, { x = 84, z = from.Z }, { x = 52, z = 458 } }, 2.5, 0.065, P.PathStone, Enum.Material.Slate)
+	local dz = math.max(math.abs(from.Z - V.center.z) - (V.plazaHalfZ - V.plazaHalfX), 0)
+	local plazaX = V.center.x + math.sqrt(math.max(V.plazaHalfX ^ 2 - dz * dz, 0))
+	Kit.Strip(f.decor, "ShrinePath", { { x = from.X, z = from.Z }, { x = plazaX, z = from.Z } }, 2.5, 0.065, P.PathStone, Enum.Material.Slate)
 	local sign = Kit.Part(f.decor, "KeeperSign", Vector3.new(0.5, 0.5, 0.5), cf * CFrame.new(0, FLOOR_Y + 13, 0), P.Amber, Enum.Material.Neon)
 	sign.Transparency = 1
 	Kit.Label(sign, "ศาลผู้ดูแล", 0, 90)
@@ -560,7 +554,7 @@ local function buildTrees(f: Folders, rng: Random)
 		local x = rng:NextNumber(V.minX + 6, V.maxX - 6)
 		local z = rng:NextNumber(V.minZ + 6, V.maxZ - 20)
 		local scale = rng:NextNumber(1.2, 1.7)
-		local between = math.abs(x) < V.roadX + 8 and z > 430 and z < 990
+		local between = math.sqrt((x - V.center.x) ^ 2 + (z - V.center.z) ^ 2) < V.roadRadius + 8
 		if not between and isOpen(x, z, 5 * scale) and not inPaddies(x, z, 6) then
 			table.insert(blockers, { x, z, 4 * scale })
 			Kit.Maple(f, rng, x, z, scale)
@@ -580,7 +574,8 @@ local function buildTrees(f: Folders, rng: Random)
 			Kit.Cedar(f, rng, side * rng:NextNumber(V.maxX + 2, V.maxX + 30), rng:NextNumber(V.minZ, V.maxZ), rng:NextNumber(1.2, 1.8))
 		end
 	end
-	for _, h in { { -220, 1190, 380, 110 }, { 190, 1170, 400, 125 }, { -560, 700, 300, 90 }, { 560, 700, 300, 100 } } do
+	local north, mid = V.maxZ + 150, V.center.z
+	for _, h in { { -220, north + 20, 380, 110 }, { 190, north, 400, 125 }, { -480, mid, 300, 90 }, { 480, mid, 300, 100 } } do
 		Kit.Part(f.decor, "Hill", Vector3.new(h[3], h[4] * 2, h[3] * 0.7), CFrame.new(h[1], FLOOR_Y - 6, h[2]), P.Hill, Enum.Material.Grass, "Ball")
 	end
 end
@@ -654,12 +649,12 @@ function Village.BuildPlotLocked(plotModel: Model, plot: PlotDef)
 	for i = -2, 2 do
 		Kit.Part(holder, "Shide", Vector3.new(0.6, 1.4, 0.05), cf * CFrame.new(i * 2.6, FLOOR_Y + 2.6, -sz / 2), P.Paper, Enum.Material.SmoothPlastic)
 	end
-	for _, c in { { -11, 22 }, { 11, 22 }, { -11, 40 }, { 11, 40 } } do
+	for _, c in { { -11, 16 }, { 11, 16 }, { -11, 30 }, { 11, 30 } } do
 		Kit.Part(holder, "Foundation", Vector3.new(2.4, 0.8, 2.4), cf * CFrame.new(c[1], FLOOR_Y + 0.3, c[2]), P.Stone, Enum.Material.Slate)
 	end
 	-- Stepping stones from the gate to the foundation (the spirit yard
 	-- covers this ground once the plot is taken).
-	for i = 0, 8 do
+	for i = 0, 7 do
 		local z = -sz / 2 + 4 + i * 7
 		Kit.Part(holder, "SteppingStone", Vector3.new(3.2, 0.25, 2.4), cf * CFrame.new(if i % 2 == 0 then -0.8 else 0.8, FLOOR_Y + 0.12, z), P.PathStone, Enum.Material.Slate)
 	end

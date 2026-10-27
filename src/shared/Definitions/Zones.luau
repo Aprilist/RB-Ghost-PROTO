@@ -38,7 +38,7 @@ local Zones: { [string]: ZoneDef } = {
 		checkpointId = "village_shrine",
 		rewardEligible = false,
 		-- World.Village bounds (M2-B).
-		volumes = { { center = Vector3.new(0, 31, 695), size = Vector3.new(660, 60, 690) } },
+		volumes = { { center = Vector3.new(0, 31, 600), size = Vector3.new(560, 60, 500) } },
 		draft = false,
 	},
 	mistwood = {

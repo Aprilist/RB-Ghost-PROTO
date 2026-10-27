@@ -1,5 +1,5 @@
 --!strict
--- M2-B world checks: village plots along the side roads, regions' decor flags, clear paths, the
+-- M2-B world checks: village plots round the ring road, regions' decor flags, clear paths, the
 -- courtyard camera band, spawns/checkpoints, zone coverage and a budget.
 -- Needs the world built (Play, or SceneService.Build() in Edit):
 --   require(game.ServerScriptService.Server.Tests.WorldLayoutTest).Run()
@@ -157,11 +157,8 @@ local cases: { Case } = {
 		end,
 	},
 	{
-		name = "plots line the side roads, gates on the road, clear of roads, each other and the NPCs",
+		name = "plots ring the ring road, gates on the road, clear of roads, each other and the NPCs",
 		run = function()
-			if V.plotFrontX < V.roadX + V.roadHalfWidth then
-				return false, "plots start on the side road"
-			end
 			local quads = {}
 			for i, p in V.plots do
 				quads[i] = plotCorners(p)
@@ -228,7 +225,8 @@ local cases: { Case } = {
 				local gate = (Village.PlotFrame(p) * CFrame.new(0, 0, -V.plotSize.z / 2)).Position
 				far = math.max(far, math.sqrt((gate.X - V.spawn.x) ^ 2 + (gate.Z - V.spawn.z) ^ 2))
 			end
-			return far <= 350, string.format("farthest gate %.0f studs", far)
+			-- Ring village (27 Oct 2026): was 350 with six houses a row.
+			return far <= 240, string.format("farthest gate %.0f studs", far)
 		end,
 	},
 	{
@@ -282,8 +280,19 @@ local cases: { Case } = {
 						if pos.Z > M.minZ and pos.Z < M.maxZ and Mistwood.DistanceToPath(pos.X, pos.Z) - radius < M.pathHalfWidth then
 							return false, "on the path: " .. p:GetFullName()
 						end
-						if pos.Z >= V.minZ and Village.DistanceToRoad(pos.X, pos.Z) - radius < 0 then
-							return false, "on a village road: " .. p:GetFullName()
+						if pos.Z >= V.minZ then
+							-- Long rails at an angle (ring plots): sample along the long
+							-- side instead of one AABB circle that would cover the road.
+							local cf, s = p.CFrame, p.Size / 2
+							local long = if s.X >= s.Z then cf.RightVector * s.X else cf.LookVector * s.Z
+							local thin = math.min(s.X, s.Z)
+							local n = math.max(1, math.ceil(long.Magnitude / math.max(thin, 1)))
+							for k = -n, n do
+								local q = pos + long * (k / n)
+								if Village.DistanceToRoad(q.X, q.Z) - thin < 0 then
+									return false, "on a village road: " .. p:GetFullName()
+								end
+							end
 						end
 					end
 				end
@@ -314,8 +323,8 @@ local cases: { Case } = {
 				{ Vector3.new(0, y, 80), "mistwood" },
 				{ Vector3.new(-30, y, 214), "mistwood" },
 				{ Vector3.new(0, y, 446), "last_lantern_village" },
-				{ Vector3.new(0, y, 1000), "last_lantern_village" },
-				{ Vector3.new(-127, y, 925), "last_lantern_village" },
+				{ Vector3.new(0, y, 830), "last_lantern_village" },
+				{ Vector3.new(-186, y, 590), "last_lantern_village" },
 			}
 			for _, s in samples do
 				local got = zoneAt(s[1] :: Vector3)

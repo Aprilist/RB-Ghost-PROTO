@@ -2,7 +2,7 @@
 -- World layout and clock (M2-B). One place, three regions along the Z axis:
 --   courtyard (boss arena, the VB-01 shrine, origin)  z ≈ -50 .. 50
 --   mistwood  (forest path, hunting area)             z ≈  50 .. 350
---   village   (Last Lantern Village, safe hub)        z ≈ 350 .. 1040
+--   village   (Last Lantern Village, safe hub)        z ≈ 350 .. 850
 -- Ground top everywhere is Prototype.Arena.FloorTopY. Positions are X/Z
 -- pairs in studs. Visual detail lives in Scene/; only layout numbers that
 -- gameplay or tests read are here.
@@ -14,52 +14,60 @@ export type Plot = { x: number, z: number, angle: number }
 export type Road = { name: string, points: { XZ }, halfWidth: number }
 
 -- Director 27 Oct 2026: yards big enough to show a large boss spirit.
--- Room for about ten large spirits in each yard, sized down 1.5x from
--- 120x140 so walks stay short (Director 27 Oct 2026).
--- Village redrawn from the Director's second sketch (27 Oct 2026): a long
--- oval village 1.5x the old area, a plaza in the middle, a straight road down
--- each long side and six houses along the outside of each road, all facing
--- in. 12 houses = 12 players per server.
-local VILLAGE_CENTER = { x = 0, z = 700 }
-local PLOT_SIZE = { x = 80, z = 94 } -- x across the front (along the road), z deep
-local ROAD_X = 70 -- side road centre lines at x = ±ROAD_X
+-- Village redrawn 27 Oct 2026 (Director: too big, and the back-row houses
+-- were hidden): one ring of 12 houses round the plaza, all facing in on the
+-- same ring road, so every house is seen the same from the middle. Plots
+-- shrunk from 80x94 to 64x80 so the ring stays small.
+-- 12 houses = 12 players per server.
+local VILLAGE_CENTER = { x = 0, z = 590 }
+local PLOT_SIZE = { x = 64, z = 80 } -- x across the front (along the road), z deep
+local ROAD_R = 136 -- ring road centre line, radius from the village centre
 local ROAD_HALF = 5
-local PLOT_FRONT_X = 80 -- front fence of every plot, |x|
-local PLOT_ROWS = { 655, 745, 565, 835, 475, 925 } -- plot centres along Z, nearest the plaza first
-local LANE_Z = { 565, 835 } -- cross lanes between the side roads, in line with plot gates
+local VERGE = 5 -- grass between the ring road edge and the plot fences
+local PLOT_FRONT_R = ROAD_R + ROAD_HALF + VERGE
+local PLAZA_HALF_X, PLAZA_HALF_Z = 44, 56
 
--- Plot 1 is the one a lone player gets, so the lowest numbers sit nearest
--- the plaza and alternate west/east.
+-- Same angle convention as Plot.angle: 0 = south (-Z), 90 = east (+X).
+local function onRing(angle: number, r: number): (number, number)
+	local a = math.rad(angle)
+	return VILLAGE_CENTER.x + math.sin(a) * r, VILLAGE_CENTER.z - math.cos(a) * r
+end
+
+-- Plots sit at 15° + 30°k round the ring, leaving gaps due south (entrance)
+-- and due north (north road). Plot 1 is the one a lone player gets, so the
+-- lowest numbers sit nearest the entrance and alternate east/west.
 local plots: { Plot } = {}
-for _, z in PLOT_ROWS do
-	for _, side in { -1, 1 } do
-		local x = side * (PLOT_FRONT_X + PLOT_SIZE.z / 2)
-		table.insert(plots, table.freeze({ x = x, z = z, angle = if side < 0 then 90 else 270 }))
-	end
+for _, a in { 15, 345, 45, 315, 75, 285, 105, 255, 135, 225, 165, 195 } do
+	local x, z = onRing(a, PLOT_FRONT_R + PLOT_SIZE.z / 2)
+	-- Gate faces the village centre.
+	table.insert(plots, table.freeze({ x = x, z = z, angle = (a + 180) % 360 }))
 end
 
 local function xz(x: number, z: number): XZ
 	return table.freeze({ x = x, z = z })
 end
 
--- Every walkable strip in the village; tests keep solids off all of them.
-local roads: { Road } = {
-	-- Forest torii up to the fork.
-	{ name = "Entrance", points = { xz(0, 350), xz(0, 420) }, halfWidth = ROAD_HALF },
-	-- The two long roads: out from the fork, straight up the sides, back in
-	-- to meet the north road (the Y of the sketch at both ends).
-	{ name = "WestRoad", points = { xz(0, 420), xz(-ROAD_X, 472), xz(-ROAD_X, 928), xz(0, 984) }, halfWidth = ROAD_HALF },
-	{ name = "EastRoad", points = { xz(0, 420), xz(ROAD_X, 472), xz(ROAD_X, 928), xz(0, 984) }, halfWidth = ROAD_HALF },
-	-- North road out of the village (ends at a closed torii for now).
-	{ name = "NorthRoad", points = { xz(0, 984), xz(0, 1036) }, halfWidth = ROAD_HALF },
-	-- Shortcuts: the stone avenue fork → spawn → plaza, and two lanes across.
-	{ name = "Avenue", points = { xz(0, 420), xz(0, 624) }, halfWidth = 3.5 },
-}
-for i, z in LANE_Z do
-	table.insert(roads, { name = "Lane" .. i, points = { xz(-ROAD_X, z), xz(ROAD_X, z) }, halfWidth = 3 })
+local ring: { XZ } = {}
+for a = 0, 360, 15 do
+	table.insert(ring, xz(onRing(a % 360, ROAD_R)))
 end
+local south, north = VILLAGE_CENTER.z - ROAD_R, VILLAGE_CENTER.z + ROAD_R
+
+-- Every walkable strip in the village; tests keep solids off all of them.
+-- NorthRoad stays 4th: Scene/Village puts the north gate at its end.
+local roads: { Road } = {
+	-- Forest torii up to the ring road, through the gap between plots 1 and 2.
+	{ name = "Entrance", points = { xz(0, 350), xz(0, south) }, halfWidth = ROAD_HALF },
+	{ name = "RingRoad", points = ring, halfWidth = ROAD_HALF },
+	-- Stone avenue ring road → spawn → plaza.
+	{ name = "Avenue", points = { xz(0, south), xz(0, VILLAGE_CENTER.z - PLAZA_HALF_Z) }, halfWidth = 3.5 },
+	-- North road out of the village (ends at a closed torii for now).
+	{ name = "NorthRoad", points = { xz(0, north), xz(0, 840) }, halfWidth = ROAD_HALF },
+	-- Paved walks from the ring road to the plaza: north, east, west.
+	{ name = "PlazaWalk", points = { xz(0, north), xz(0, VILLAGE_CENTER.z + PLAZA_HALF_Z) }, halfWidth = 3 },
+}
 for _, side in { -1, 1 } do
-	table.insert(roads, { name = "PlazaWalk", points = { xz(side * ROAD_X, VILLAGE_CENTER.z), xz(side * 44, VILLAGE_CENTER.z) }, halfWidth = 3 })
+	table.insert(roads, { name = "PlazaWalk", points = { xz(side * ROAD_R, VILLAGE_CENTER.z), xz(side * PLAZA_HALF_X, VILLAGE_CENTER.z) }, halfWidth = 3 })
 end
 for _, r in roads do
 	table.freeze(r.points)
@@ -110,29 +118,29 @@ return table.freeze({
 	}),
 
 	Village = table.freeze({
-		minX = -330,
-		maxX = 330,
+		minX = -280,
+		maxX = 280,
 		minZ = 350,
-		maxZ = 1040,
-		-- Oval village (Director sketch 2, 27 Oct 2026). Walking in from the
-		-- forest (+Z): paddies on the left (+X), grove on the right (-X), the
-		-- keeper's shrine outside the bottom-left corner, as in the sketch.
+		maxZ = 850,
+		-- Round village: plaza in the middle, lawns, the ring road, then the
+		-- ring of houses. Walking in from the forest (+Z): paddies on the left
+		-- (+X), grove top right (-X), the keeper's shrine on the inner lawn
+		-- to the left of the avenue.
 		center = VILLAGE_CENTER,
 		treeTrunkRadius = 7,
 		-- Stone plaza under the tree: a stadium (oval) shape, half-widths from `center`.
-		plazaHalfX = 44,
-		plazaHalfZ = 76,
+		plazaHalfX = PLAZA_HALF_X,
+		plazaHalfZ = PLAZA_HALF_Z,
 		stallRadius = 30, -- stall centres round the tree
-		roadX = ROAD_X,
+		roadRadius = ROAD_R,
 		roadHalfWidth = ROAD_HALF,
-		laneZ = table.freeze(LANE_Z),
 		roads = table.freeze(roads),
-		plotFrontX = PLOT_FRONT_X, -- front fence of every plot, |x|
+		vergeWidth = VERGE, -- grass between the ring road edge and the plot fences
 		plotSize = PLOT_SIZE, -- x across the front, z deep
-		spawn = { x = 0, z = 596 },
-		checkpoint = { x = 0, z = 596 }, -- village_shrine, lawn just south of the plaza
-		keeperShrine = { x = 200, z = 396 }, -- outside the bottom-left corner, faces west to the fork
-		pond = { x = 0, z = 862, radius = 15 }, -- garden pond on the north lawn
+		spawn = { x = 0, z = 496 },
+		checkpoint = { x = 0, z = 496 }, -- village_shrine, lawn just south of the plaza
+		keeperShrine = { x = 90, z = 540 }, -- inner lawn, faces west to the avenue
+		pond = { x = -60, z = 660, radius = 15 }, -- garden pond on the north-west lawn
 		-- Stalls round the tree, angle in degrees (0 = south, 90 = east).
 		stalls = table.freeze({
 			{ id = "shop", angle = 135 },
@@ -140,18 +148,18 @@ return table.freeze({
 			{ id = "talisman", angle = 315 },
 			{ id = "teahouse", angle = 45 },
 		}),
-		-- One plot per player slot (Project.TargetPlayersPerServer): six along
-		-- the outside of each side road, gates facing the road.
+		-- One plot per player slot (Project.TargetPlayersPerServer): one ring
+		-- round the ring road, gates facing the plaza.
 		plots = table.freeze(plots),
-		-- NPC houses at the four corners, by the fork and the north road.
+		-- NPC houses outside the ring: the corners and the west side.
 		npcHouses = table.freeze({
-			xz(-124, 400),
-			xz(-206, 412),
-			xz(-118, 1004),
-			xz(118, 1004),
+			xz(-200, 390),
+			xz(200, 390),
+			xz(200, 800),
+			xz(-255, 590),
 		}),
-		paddies = { minX = 255, maxX = 320, minZ = 480, maxZ = 920 },
-		grove = { x = -272, z = 700, radius = 42 },
+		paddies = { minX = 240, maxX = 275, minZ = 470, maxZ = 710 },
+		grove = { x = -200, z = 800, radius = 35 }, -- north-west corner
 	}),
 
 	Clock = table.freeze({
