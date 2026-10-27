@@ -15,7 +15,8 @@ export type ActionName =
 	| "transform"
 	| "claim_quest"
 	| "apply_seal"
-	| "choose_class" -- M4: switch class at the trainer NPC
+	| "choose_class" -- M4: one-time class pick
+	| "learn_skill" -- M4: spend one skill point on one rank
 
 export type ResultCode =
 	"OK"
@@ -32,6 +33,10 @@ export type ResultCode =
 	| "ALREADY_SEALED"
 	| "CAP_REACHED"
 	| "CLASS_LOCKED" -- M4: the class was already picked and cannot change
+	| "SKILL_LOCKED" -- M4: level too low for the skill, or not learned yet
+	| "MAX_RANK"
+	| "NO_SKILL_POINTS"
+	| "NO_SP" -- M4: not enough SP to cast
 	| "INTERNAL_ERROR"
 
 export type ReadyPayload = {}
@@ -42,6 +47,7 @@ export type TransformPayload = {}
 export type ClaimQuestPayload = { questId: string }
 export type ApplySealPayload = { itemInstanceId: string, sealId: string }
 export type ChooseClassPayload = { classId: string }
+export type LearnSkillPayload = { skillId: string }
 
 -- client → server (ActionRequest)
 export type ActionRequest = {
@@ -68,6 +74,7 @@ export type PublicOwnProfile = {
 	-- M4: false until the one-time class pick; the client shows the class menu.
 	classChosen: boolean,
 	skillPoints: number,
+	skills: { [string]: number }, -- M4 learned rank per skill id
 	level: number,
 	xp: number,
 	xpToNext: number?,
@@ -91,6 +98,11 @@ export type PublicOwnSession = {
 	-- M2-E ward shield: HP left (0 = none) and when it runs out (server clock).
 	shieldHp: number,
 	shieldEndsAt: number?,
+	-- M4 SP: value at spAt (server clock); regenerates SkillRules.SpRegenPerSec.
+	sp: number,
+	spAt: number,
+	maxSp: number,
+	buffEndsAt: number?, -- M4 damage buff from a buff skill
 }
 
 -- revision is a per-server-session counter in P1 (see PROTOTYPE_BRIEF.md);
@@ -186,5 +198,6 @@ return {
 		claim_quest = { perSec = 2, burst = 2 },
 		apply_seal = { perSec = 2, burst = 2 },
 		choose_class = { perSec = 2, burst = 2 },
+		learn_skill = { perSec = 5, burst = 5 },
 	},
 }

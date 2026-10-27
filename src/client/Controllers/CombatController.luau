@@ -8,7 +8,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
+local SkillRules = require(ReplicatedStorage.Shared.Util.SkillRules)
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
+local Skills = require(ReplicatedStorage.Shared.Definitions.Skills)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 
 type Network = {
@@ -20,7 +22,7 @@ type Network = {
 type Camera = { GetAimDirection: (BasePart?) -> Vector3 }
 type Effects = {
 	PlaySwing: (BasePart, Vector3, number) -> (),
-	PlaySweep: (BasePart, Vector3) -> (),
+	PlaySweep: (BasePart, Vector3, number?) -> (),
 	PlayDash: (BasePart) -> (),
 	PlayWave: (BasePart, Vector3) -> (),
 	PlayBolt: (BasePart, Vector3, number) -> (),
@@ -38,6 +40,8 @@ local REJECT_TEXT: { [string]: string } = {
 	NOT_READY = "ยังไม่พร้อม",
 	INVALID_PAYLOAD = "คำสั่งไม่ถูกต้อง",
 	NOT_OWNED = "ไม่มีวิชานี้",
+	SKILL_LOCKED = "ยังไม่ได้เรียนสกิลนี้",
+	NO_SP = "SP ไม่พอ",
 	INTERNAL_ERROR = "server ผิดพลาด",
 }
 
@@ -51,6 +55,8 @@ local banner: Banner
 local comboStep = 0
 local lastSwingAt = -math.huge
 local predictedCooldowns: { [string]: number } = {}
+-- requestId → skill id of each cast_skill sent, to undo its predicted cooldown.
+local pendingCasts: { [string]: string } = {}
 
 local function flat(v: Vector3): Vector3?
 	local f = Vector3.new(v.X, 0, v.Z)
@@ -166,28 +172,49 @@ end
 
 local dashMotion: (BasePart, Vector3) -> ()
 
-local function castSkill()
+-- M4: hotbar slot 1–5 (E = slot 1). Checks lock, SP and cooldown locally
+-- for a quick answer; the server decides.
+local function castSkill(slot: number)
 	local root = getRoot()
-	if not root then
+	local snapshot = network.GetSnapshot()
+	if not root or not snapshot then
 		return
 	end
-	local skill = kit().skill
+	local p = snapshot.profile
+	local skillId = kit().skillIds[slot]
+	local skill = skillId and Skills[skillId]
+	if not skill then
+		return
+	end
+	if SkillRules.CanCast(p, skill.id) ~= "OK" then
+		banner.ShowAction(if p.level < skill.unlockLevel then string.format("%s ปลดที่ Lv %d", skill.displayNameTH, skill.unlockLevel) else skill.displayNameTH .. " ยังไม่ได้เรียน (กด K)")
+		return
+	end
 	if not cooldownReady(skill.id) then
 		banner.ShowAction(REJECT_TEXT.COOLDOWN)
 		return
 	end
-	predictedCooldowns[skill.id] = workspace:GetServerTimeNow() + skill.cooldownSec
-	local aim = softAim(root, camera.GetAimDirection(root), skill.rangeStuds)
-	face(root, aim)
-	network.Send("cast_skill", { skillId = skill.id, aimDirection = aim })
-	if skill.hitShape == "line" then
-		-- Ninja dash strike: moves exactly like a dash (server checks it the same way).
-		dashMotion(root, aim)
-	elseif skill.hitShape == "circle" then
-		-- Onmyoji seal: the circle is drawn from the server's combat_fx.
-	else
-		effects.PlaySweep(root, aim)
+	local s = snapshot.session
+	if SkillRules.SpAt(s.sp, s.spAt, s.maxSp, workspace:GetServerTimeNow()) < skill.spCost then
+		banner.ShowAction(REJECT_TEXT.NO_SP)
+		return
 	end
+	predictedCooldowns[skill.id] = workspace:GetServerTimeNow() + skill.cooldownSec
+	local aim = softAim(root, camera.GetAimDirection(root), math.max(skill.rangeStuds, 6))
+	face(root, aim)
+	local requestId = network.Send("cast_skill", { skillId = skill.id, aimDirection = aim })
+	if requestId then
+		pendingCasts[requestId] = skill.id
+	end
+	if skill.hitShape == "line" then
+		-- Dash strike: moves exactly like a dash (server checks it the same way).
+		dashMotion(root, aim)
+	elseif skill.hitShape == "sector" then
+		effects.PlaySweep(root, aim, skill.rangeStuds)
+	elseif skill.hitShape == "bolt" then
+		effects.PlayBolt(root, aim, skill.rangeStuds)
+	end
+	-- circle, buff and heal are drawn from the server's combat_fx for everyone.
 end
 
 -- Same rule as the server's Geometry.ClearDistance: only the arena's
@@ -260,7 +287,9 @@ function CombatController.Handle(action: string)
 	if action == "basic_attack" then
 		basicAttack()
 	elseif action == "cast_skill" then
-		castSkill()
+		castSkill(1)
+	elseif string.sub(action, 1, 6) == "skill_" then
+		castSkill(tonumber(string.sub(action, 7)) or 0)
 	elseif action == "dash" then
 		dash()
 	elseif action == "transform" then
@@ -277,14 +306,17 @@ end
 
 function CombatController.Start()
 	network.OnResult(function(result, action)
+		local castSkillId = pendingCasts[result.requestId]
+		pendingCasts[result.requestId] = nil
 		-- claim_quest errors are shown by QuestController, apply_seal by SealController,
 		-- choose_class by ClassController.
-		if result.ok or action == "ready" or action == "claim_quest" or action == "apply_seal" or action == "choose_class" then
+		-- learn_skill by SkillController.
+		if result.ok or action == "ready" or action == "claim_quest" or action == "apply_seal" or action == "choose_class" or action == "learn_skill" then
 			return
 		end
 		if action == "dash" or action == "cast_skill" then
 			-- Server is the authority; fall back to its snapshot cooldowns.
-			predictedCooldowns[if action == "dash" then "dash" else kit().skill.id] = nil
+			predictedCooldowns[if action == "dash" then "dash" else castSkillId or ""] = nil
 		end
 		local text = REJECT_TEXT[result.code] or result.code
 		if action == "transform" and result.code == "NOT_READY" then

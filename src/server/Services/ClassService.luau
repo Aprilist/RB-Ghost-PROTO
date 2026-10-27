@@ -4,6 +4,8 @@
 -- menu by itself while the snapshot says classChosen = false; the trainer
 -- NPC opens the same menu (StateEvent "class_menu") to show the classes.
 -- choose_class works anywhere while the class is not yet chosen.
+-- M4 skill system: learn_skill spends one skill point on one rank
+-- (SkillRules), anywhere, from the skill window.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -12,6 +14,7 @@ local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Npcs = require(ReplicatedStorage.Shared.Definitions.Npcs)
 local ClassRules = require(script.Parent.Parent.Util.ClassRules)
 local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
+local SkillRules = require(ReplicatedStorage.Shared.Util.SkillRules)
 
 type ResultCode = Contracts.ResultCode
 
@@ -70,6 +73,25 @@ local function chooseClass(player: Player, payload: { [string]: any }): ResultCo
 	return code :: ResultCode
 end
 
+local function learnSkill(player: Player, payload: { [string]: any }): ResultCode
+	local skillId = payload.skillId :: string
+	local profile = profiles.Get(player)
+	if not profile then
+		return "NOT_READY"
+	end
+	local dry = SkillRules.Learn(ProfileRules.Clone(profile), skillId)
+	if dry ~= "OK" then
+		return dry :: ResultCode
+	end
+	local code: SkillRules.LearnCode = "INVALID_PAYLOAD"
+	if not profiles.Mutate(player, function(p)
+		code = SkillRules.Learn(p, skillId)
+	end) then
+		return "INTERNAL_ERROR"
+	end
+	return code :: ResultCode
+end
+
 function ClassService.Init(deps: { Network: Network, Profiles: Profiles, PlayerState: PlayerState })
 	network = deps.Network
 	profiles = deps.Profiles
@@ -78,6 +100,7 @@ end
 
 function ClassService.Start()
 	network.Handle("choose_class", chooseClass)
+	network.Handle("learn_skill", learnSkill)
 end
 
 return ClassService

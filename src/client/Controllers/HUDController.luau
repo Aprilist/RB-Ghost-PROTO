@@ -2,6 +2,8 @@
 -- HUD driven only by server snapshots: level and EXP, HP, spirit gauge (or
 -- transform time left), essence, coins (display only for now, per Director)
 -- and skill/dash cooldowns, and (M2-B) season, day and time of day.
+-- M4: SP bar and unspent skill points (hotbar cooldowns are on the
+-- SkillController hotbar).
 -- Times are server clock.
 -- Sits top-left so it never overlaps the touch thumbstick or action buttons,
 -- and is non-interactive so it never eats camera drags.
@@ -14,6 +16,7 @@ local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local Seals = require(ReplicatedStorage.Shared.Definitions.Seals)
+local SkillRules = require(ReplicatedStorage.Shared.Util.SkillRules)
 local World = require(ReplicatedStorage.Shared.Definitions.World)
 local WorldClock = require(ReplicatedStorage.Shared.Util.WorldClock)
 
@@ -24,6 +27,7 @@ type Network = {
 
 local HP_RED = Color3.fromRGB(220, 70, 70)
 local SPIRIT_BLUE = Color3.fromRGB(110, 170, 255)
+local SP_TEAL = Color3.fromRGB(90, 200, 190)
 local GUARDIAN_WHITE = Color3.fromRGB(225, 240, 255)
 local AMBER = Color3.fromRGB(255, 196, 120)
 local COIN_GOLD = Color3.fromRGB(240, 210, 120)
@@ -39,6 +43,7 @@ local levelLabel: TextLabel
 local xpBar: Bar
 local hpBar: Bar
 local gaugeBar: Bar
+local spBar: Bar
 local essenceLabel: TextLabel
 local coinLabel: TextLabel
 local clockLabel: TextLabel
@@ -120,6 +125,13 @@ local function render()
 		then string.format("HP %d / %d  +โล่ %d", s.hp, s.maxHp, shield)
 		else string.format("HP %d / %d", s.hp, s.maxHp)
 
+	local sp = SkillRules.SpAt(s.sp, s.spAt, s.maxSp, now)
+	spBar.fill.Size = UDim2.fromScale(math.clamp(sp / math.max(s.maxSp, 1), 0, 1), 1)
+	local buffLeft = remaining(s.buffEndsAt, now)
+	spBar.label.Text = if buffLeft > 0
+		then string.format("SP %d / %d  · บัฟ %.0f วิ", sp, s.maxSp, buffLeft)
+		else string.format("SP %d / %d", sp, s.maxSp)
+
 	local transformLeft = remaining(s.transformEndsAt, now)
 	if transformLeft > 0 then
 		gaugeBar.fill.BackgroundColor3 = GUARDIAN_WHITE
@@ -149,8 +161,7 @@ local function render()
 			else "ผนึก: " .. sealDef.displayNameTH
 	end
 
-	local skillLeft = remaining(s.cooldowns[Classes.Kit(p.classId).skill.id], now)
-	skillChip.Text = if skillLeft > 0 then string.format("วิชา E  %.1f", skillLeft) else "วิชา E  พร้อม"
+	skillChip.Text = if p.skillPoints > 0 then string.format("สกิล K · แต้ม %d", p.skillPoints) else "สกิล K"
 	local dashLeft = remaining(s.cooldowns.dash, now)
 	dashChip.Text = if dashLeft > 0 then string.format("พุ่ง Q  %.1f", dashLeft) else "พุ่ง Q  พร้อม"
 
@@ -177,7 +188,7 @@ function HUDController.Start(deps: Network)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.Size = UDim2.fromOffset(260, 174)
+	panel.Size = UDim2.fromOffset(260, 192)
 	panel.Position = UDim2.fromOffset(12, 44)
 	panel.BackgroundColor3 = PANEL
 	panel.BackgroundTransparency = 0.35
@@ -192,16 +203,17 @@ function HUDController.Start(deps: Network)
 	xpBar = bar(panel, 9, EXP_GREEN, 60, 13, 11)
 	xpBar.label.TextColor3 = Color3.new(1, 1, 1)
 	hpBar = bar(panel, 30, HP_RED)
-	gaugeBar = bar(panel, 54, SPIRIT_BLUE)
-	essenceLabel = label(panel, "", UDim2.fromOffset(124, 20), UDim2.fromOffset(10, 79), 13)
+	spBar = bar(panel, 52, SP_TEAL, nil, 14, 11)
+	gaugeBar = bar(panel, 70, SPIRIT_BLUE)
+	essenceLabel = label(panel, "", UDim2.fromOffset(124, 20), UDim2.fromOffset(10, 95), 13)
 	essenceLabel.TextColor3 = AMBER
-	coinLabel = label(panel, "", UDim2.fromOffset(110, 20), UDim2.fromOffset(140, 79), 13)
+	coinLabel = label(panel, "", UDim2.fromOffset(110, 20), UDim2.fromOffset(140, 95), 13)
 	coinLabel.TextColor3 = COIN_GOLD
-	skillChip = chip(panel, 8, 106)
-	dashChip = chip(panel, 134, 106)
-	clockLabel = label(panel, "", UDim2.fromOffset(240, 18), UDim2.fromOffset(10, 132), 12)
+	skillChip = chip(panel, 8, 122)
+	dashChip = chip(panel, 134, 122)
+	clockLabel = label(panel, "", UDim2.fromOffset(240, 18), UDim2.fromOffset(10, 148), 12)
 	clockLabel.TextColor3 = Color3.fromRGB(210, 214, 240)
-	sealLabel = label(panel, "", UDim2.fromOffset(240, 18), UDim2.fromOffset(10, 150), 12)
+	sealLabel = label(panel, "", UDim2.fromOffset(240, 18), UDim2.fromOffset(10, 166), 12)
 	sealLabel.TextColor3 = AMBER
 
 	statusLabel = label(gui, "", UDim2.fromOffset(320, 30), UDim2.new(0.5, -160, 0.72, 0), 20)

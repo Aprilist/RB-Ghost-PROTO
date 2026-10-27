@@ -4,13 +4,15 @@
 -- Touch buttons come from ContextActionService using its default layout
 -- around the jump button; they sink their touches, so pressing them never rotates the camera.
 -- CombatController turns these actions into server requests.
+-- M4: keys 1–5 fire "skill_1".."skill_5" (hotbar; E stays slot 1). They have
+-- no CAS touch button: touch players tap the hotbar (SkillController).
 
 local ContextActionService = game:GetService("ContextActionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 
-export type ActionName = "basic_attack" | "cast_skill" | "dash" | "transform"
+export type ActionName = "basic_attack" | "cast_skill" | "dash" | "transform" | string
 
 local ORDER: { ActionName } = { "basic_attack", "cast_skill", "dash", "transform" }
 
@@ -46,6 +48,15 @@ function InputController.Start()
 		-- Explicit compact layout: CAS defaults can place the fourth action
 		-- below the safe viewport on landscape phones (observed on iPhone XR).
 		ContextActionService:SetPosition(bindName, binding.TouchPosition)
+	end
+	local keys = { Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five }
+	for slot, key in keys do
+		ContextActionService:BindAction("SpiritWard_skill_" .. slot, function(_, state: Enum.UserInputState)
+			if state == Enum.UserInputState.Begin then
+				fire("skill_" .. slot)
+			end
+			return Enum.ContextActionResult.Pass
+		end, false, key)
 	end
 end
 

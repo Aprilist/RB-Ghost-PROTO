@@ -56,14 +56,15 @@ requestId เป็น string จำกัด 64 bytes; payload ห้ามส�
 |---|---|---|---|
 | ready | {} | profileReady; initial snapshot; retry ได้ | 1/sec burst 2 |
 | basic_attack | {sequence: integer, aimDirection: Vector3} | alive, range/height/line of sight, cadence; server หา targets | 6/sec burst 6 |
-| cast_skill | {skillId, aimDirection: Vector3} | class owns skill, cooldown, state, geometry | 5/sec burst 5 |
+| cast_skill | {skillId, aimDirection: Vector3} | สกิลอยู่ใน hotbar ของอาชีพ (`NOT_OWNED`), เลเวลถึงและเรียนแล้ว (`SKILL_LOCKED`), alive, cooldown, SP พอ (`NO_SP`), geometry · M4: ดาเมจ = อาวุธ × multiplier × (1 + 0.15 × (ระดับ−1)) × บัฟ | 5/sec burst 5 |
 | dash | {moveDirection: Vector3} | alive, cooldown, movement state, clear path | 3/sec burst 3 |
 | transform | {} | gauge = 100, not active, alive | 1/sec burst 2 |
 | apply_seal | {itemInstanceId, sealId} | ownership, shrine distance, essence | 2/sec burst 2 |
 | claim_quest | {questId} | ready; never previously claimed | 2/sec burst 2 |
+| learn_skill | {skillId} | เลือกอาชีพแล้ว (`NOT_READY`), สกิลของอาชีพ (`NOT_OWNED`), เลเวลถึง (`SKILL_LOCKED`), ยังไม่เต็ม (`MAX_RANK`), มีแต้ม (`NO_SKILL_POINTS`); ใช้ 1 แต้ม +1 ระดับ ผ่าน Mutate (M4) | 5/sec burst 5 |
 | choose_class | {classId} | class มีอยู่และเปิดแล้ว (`NOT_OWNED` ถ้ายังไม่เปิด), alive, `classChosen` ต้องเป็น false ไม่งั้น `CLASS_LOCKED`; ตั้ง classId + classChosen ผ่าน Mutate ครั้งเดียว ใช้ได้ทุกที่ (M4, Director 28 ต.ค. 2026: เลือกแล้วเปลี่ยนไม่ได้) | 2/sec burst 2 |
 
-ActionResult codes: OK, NOT_READY, INVALID_PAYLOAD, RATE_LIMITED, COOLDOWN, DEAD, OUT_OF_RANGE, NOT_OWNED, INSUFFICIENT_ESSENCE, QUEST_NOT_READY, ALREADY_CLAIMED, ALREADY_SEALED, CAP_REACHED, CLASS_LOCKED, INTERNAL_ERROR
+ActionResult codes: OK, NOT_READY, INVALID_PAYLOAD, RATE_LIMITED, COOLDOWN, DEAD, OUT_OF_RANGE, NOT_OWNED, INSUFFICIENT_ESSENCE, QUEST_NOT_READY, ALREADY_CLAIMED, ALREADY_SEALED, CAP_REACHED, CLASS_LOCKED, SKILL_LOCKED, MAX_RANK, NO_SKILL_POINTS, NO_SP, INTERNAL_ERROR
 
 Direction contract: รับเฉพาะ Vector3 ที่ finite ทุกแกน, abs(Y) <= 0.01 และ magnitude อยู่ใน [0.99, 1.01] จากนั้น server project ลง X/Z และ normalize อีกครั้ง ปฏิเสธ zero/NaN/Infinity; ผู้เล่นสามารถหมุนโจมตีได้อิสระใน 3D แต่ server ยังบังคับ cadence, range, height และ line of sight ไม่รับ client origin/target list การช่วยเล็งไม่เพิ่มระยะโจมตี
 
@@ -74,6 +75,8 @@ StateEvent kinds:
 - snapshot: `{kind, revision, profile: PublicOwnProfile, session: PublicOwnSession}` ส่งเฉพาะเจ้าของหลัง ready และหลัง authoritative mutation ใน slice
 - combat_fx: `{kind, eventId, actorUserId?, enemyId?, effectId, position}` ส่งภาพเฉพาะผู้ใกล้เหตุการณ์ ไม่แนบ profile
 - encounter: `{kind, encounterId, state, endsAt?}` ส่งผู้เข้าร่วม
+- combat_fx `effectId = "skill:<skillId>"` (M4): จุดที่ใช้สกิล hotbar ให้ client วาดตาม catalog
+- snapshot (M4): profile เพิ่ม `skills` (skillId → ระดับ); session เพิ่ม `sp`, `spAt`, `maxSp` (SP = sp + (เวลา − spAt) × 3 ไม่เกิน maxSp) และ `buffEndsAt`
 - class_menu: `{kind, npcId, speakerTH}` ส่งเฉพาะผู้ที่กด prompt ครูฝึก เปิดเมนูเลือกอาชีพ (M4)
 
 snapshot รวมข้อมูลที่ UI ต้องใช้ทั้งหมดใน slice; client ทิ้ง snapshot revision ที่ต่ำกว่าล่าสุด ส่วน session-only changes ใช้ revision เพิ่มด้วยเพื่อรักษาลำดับเดียวกัน ห้ามใช้ revision ของ persisted profile เป็น session fencing token

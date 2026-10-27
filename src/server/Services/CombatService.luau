@@ -14,6 +14,8 @@ local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local Geometry = require(script.Parent.Parent.Util.Geometry)
+local SkillRules = require(ReplicatedStorage.Shared.Util.SkillRules)
+local Skills = require(ReplicatedStorage.Shared.Definitions.Skills)
 
 type ResultCode = Contracts.ResultCode
 
@@ -30,6 +32,12 @@ type PlayerState = {
 	CooldownReady: (Player, string) -> boolean,
 	StartCooldown: (Player, string, number) -> (),
 	Commit: (Player) -> (),
+	SpendSp: (Player, number) -> boolean,
+	SpNow: (Player) -> number,
+	Heal: (Player, number) -> (),
+	GrantDamageBuff: (Player, number, number) -> (),
+	DamageMult: (Player) -> number,
+	Get: (Player) -> { maxHp: number }?,
 }
 
 type EnemyRecord = { id: string, body: BasePart, bodyRadius: number }
@@ -47,7 +55,7 @@ type Movement = {
 }
 
 type Profiles = {
-	Get: (Player) -> { classId: string }?,
+	Get: (Player) -> SkillRules.SkillProfile?,
 }
 
 local CombatService = {}
@@ -118,18 +126,19 @@ local function basicAttack(player: Player, payload: { [string]: any }): ResultCo
 
 	local root = playerState.GetRoot(player) :: BasePart
 	local aim = network.ValidateDirection(payload.aimDirection) :: Vector3
+	local mult = playerState.DamageMult(player)
 	local hit: { string }
 	if playerState.IsTransformed(player) then
 		-- Guardian form: short wave, longer reach, same hit pipeline.
 		local S = Prototype.Spirit
 		network.EmitFx("wave", root.Position + aim * (S.TransformAttackReachStuds / 2), player.UserId, nil)
-		hit = strike(player, root.Position, aim, S.TransformAttackReachStuds, S.TransformAttackArcDeg, S.TransformAttackDamage)
+		hit = strike(player, root.Position, aim, S.TransformAttackReachStuds, S.TransformAttackArcDeg, S.TransformAttackDamage * mult)
 	elseif kit.basicShape == "bolt" then
-		hit = strike(player, root.Position, aim, kit.basicReachStuds, kit.basicArcDeg, kit.basicDamage, true)
+		hit = strike(player, root.Position, aim, kit.basicReachStuds, kit.basicArcDeg, kit.basicDamage * mult, true)
 		network.EmitFx("talisman_bolt", root.Position + aim * (kit.basicReachStuds / 2), player.UserId, nil)
 	else
 		network.EmitFx("slash", root.Position + aim * 3, player.UserId, nil)
-		hit = strike(player, root.Position, aim, kit.basicReachStuds, kit.basicArcDeg, kit.basicDamage)
+		hit = strike(player, root.Position, aim, kit.basicReachStuds, kit.basicArcDeg, kit.basicDamage * mult)
 	end
 	if #hit > 0 then
 		for _, callback in basicHitListeners do
@@ -152,11 +161,19 @@ local function strikeLine(player: Player, origin: Vector3, dir: Vector3, length:
 	end
 end
 
+-- M4: any hotbar skill of the player's class that is unlocked and learned
+-- (SkillRules), paid in SP. Damage = weapon × multiplier × rank scale × buff.
+-- combat_fx "skill:<id>" at the cast point lets clients draw it from the
+-- catalog (the caster predicts sector/bolt/line visuals itself).
 local function castSkill(player: Player, payload: { [string]: any }): ResultCode
-	local kit = kitOf(player)
-	local skill = kit.skill
-	if payload.skillId ~= skill.id then
-		return "NOT_OWNED"
+	local skill = Skills[payload.skillId :: string]
+	local profile = profiles.Get(player)
+	if not skill or not profile then
+		return if profile then "NOT_OWNED" else "NOT_READY"
+	end
+	local code = SkillRules.CanCast(profile, skill.id)
+	if code ~= "OK" then
+		return code :: ResultCode
 	end
 	if not playerState.IsAlive(player) then
 		return "DEAD"
@@ -164,24 +181,41 @@ local function castSkill(player: Player, payload: { [string]: any }): ResultCode
 	if not playerState.CooldownReady(player, skill.id) then
 		return "COOLDOWN"
 	end
+	if not playerState.SpendSp(player, skill.spCost) then
+		return "NO_SP"
+	end
 	playerState.StartCooldown(player, skill.id, skill.cooldownSec)
 
+	local rank = SkillRules.Rank(profile, skill.id)
+	local damage = SkillRules.Damage(skill, rank) * playerState.DamageMult(player)
 	local root = playerState.GetRoot(player) :: BasePart
 	local aim = network.ValidateDirection(payload.aimDirection) :: Vector3
+	local fx = "skill:" .. skill.id
 	if skill.hitShape == "line" then
 		local origin = movement.GetAnchor(player) or root.Position
 		local allowed = movement.BeginDash(player, aim)
-		network.EmitFx("dash", origin + aim * (allowed / 2), player.UserId, nil)
-		strikeLine(player, origin, aim, allowed, skill.widthStuds or 4, kit.skillDamage)
+		network.EmitFx(fx, origin + aim * (allowed / 2), player.UserId, nil)
+		strikeLine(player, origin, aim, allowed, skill.widthStuds or 4, damage)
 	elseif skill.hitShape == "circle" then
-		-- Onmyoji seal: a circle ahead, its centre stopped short of walls.
-		local radius = skill.radiusStuds or 6
+		-- A circle ahead (or on self at range 0), its centre stopped short of walls.
 		local centre = root.Position + aim * Geometry.ClearDistance(root.Position, aim, skill.rangeStuds, 1)
-		network.EmitFx("talisman_seal", centre, player.UserId, nil)
-		strike(player, centre, aim, radius, 360, kit.skillDamage)
+		network.EmitFx(fx, centre, player.UserId, nil)
+		strike(player, centre, aim, skill.radiusStuds or 6, 360, damage)
+	elseif skill.hitShape == "bolt" then
+		network.EmitFx(fx, root.Position + aim * (skill.rangeStuds / 2), player.UserId, nil)
+		strike(player, root.Position, aim, skill.rangeStuds, skill.arcDeg, damage, true)
+	elseif skill.hitShape == "buff" then
+		network.EmitFx(fx, root.Position, player.UserId, nil)
+		playerState.GrantDamageBuff(player, skill.buffMult or 1, SkillRules.BuffSec(skill, rank))
+	elseif skill.hitShape == "heal" then
+		network.EmitFx(fx, root.Position, player.UserId, nil)
+		local state = playerState.Get(player)
+		if state then
+			playerState.Heal(player, math.floor(state.maxHp * SkillRules.HealFraction(skill, rank) + 0.5))
+		end
 	else
-		network.EmitFx("sweep", root.Position + aim * 2, player.UserId, nil)
-		strike(player, root.Position, aim, skill.rangeStuds, skill.arcDeg, kit.skillDamage)
+		network.EmitFx(fx, root.Position + aim * 2, player.UserId, nil)
+		strike(player, root.Position, aim, skill.rangeStuds, skill.arcDeg, damage)
 	end
 	playerState.Commit(player)
 	return "OK"

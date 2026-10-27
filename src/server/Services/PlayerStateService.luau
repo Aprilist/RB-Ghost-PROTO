@@ -3,6 +3,8 @@
 -- fields and the snapshot revision; level/EXP/coins/essence live in the
 -- profile (ProfileService) and are copied into each snapshot. Max HP follows
 -- the profile level. The Humanoid mirrors this HP; it is not the source of truth.
+-- M4: SP (stored as value + time, regenerates lazily, SkillRules) and one
+-- damage buff from buff skills.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
 local SealRules = require(script.Parent.Parent.Util.SealRules)
+local SkillRules = require(ReplicatedStorage.Shared.Util.SkillRules)
 
 export type State = {
 	hp: number,
@@ -22,6 +25,11 @@ export type State = {
 	revision: number,
 	shieldHp: number, -- M2-E ward shield; session only
 	shieldEndsAt: number?,
+	sp: number, -- M4: SP when spAt was set; regenerates from there
+	spAt: number,
+	maxSp: number,
+	buffMult: number, -- M4 buff skills: damage multiplier until buffEndsAt
+	buffEndsAt: number?,
 }
 
 type Network = {
@@ -107,6 +115,7 @@ function PlayerStateService.Commit(player: Player)
 			classId = profile.classId,
 			classChosen = profile.classChosen,
 			skillPoints = profile.skillPoints,
+			skills = table.clone(profile.skills),
 			level = profile.level,
 			xp = profile.xp,
 			xpToNext = ProfileRules.XpToNext(profile.level),
@@ -126,8 +135,67 @@ function PlayerStateService.Commit(player: Player)
 			profileReady = state.profileReady,
 			shieldHp = SealRules.ShieldNow(state.shieldHp, state.shieldEndsAt, now()),
 			shieldEndsAt = state.shieldEndsAt,
+			sp = state.sp,
+			spAt = state.spAt,
+			maxSp = state.maxSp,
+			buffEndsAt = if state.buffEndsAt and now() < state.buffEndsAt then state.buffEndsAt else nil,
 		},
 	})
+end
+
+-- M4 SP: current value with regeneration.
+function PlayerStateService.SpNow(player: Player): number
+	local state = states[player]
+	return if state then SkillRules.SpAt(state.sp, state.spAt, state.maxSp, now()) else 0
+end
+
+-- Takes `cost` SP if there is enough; false (and nothing taken) otherwise.
+function PlayerStateService.SpendSp(player: Player, cost: number): boolean
+	local state = states[player]
+	if not state then
+		return false
+	end
+	local sp = SkillRules.SpAt(state.sp, state.spAt, state.maxSp, now())
+	if sp < cost then
+		return false
+	end
+	state.sp = sp - cost
+	state.spAt = now()
+	return true
+end
+
+-- Heals up to max HP (M4 heal skill).
+function PlayerStateService.Heal(player: Player, amount: number)
+	local state = states[player]
+	if not state or not state.alive or amount <= 0 then
+		return
+	end
+	state.hp = math.min(state.maxHp, state.hp + amount)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.Health = state.hp
+	end
+	PlayerStateService.Commit(player)
+end
+
+-- One damage buff at a time; a new one replaces the old (M4 buff skills).
+function PlayerStateService.GrantDamageBuff(player: Player, mult: number, seconds: number)
+	local state = states[player]
+	if not state or not state.alive or mult <= 1 or seconds <= 0 then
+		return
+	end
+	state.buffMult = mult
+	state.buffEndsAt = now() + seconds
+	PlayerStateService.Commit(player)
+end
+
+function PlayerStateService.DamageMult(player: Player): number
+	local state = states[player]
+	if state and state.buffEndsAt and now() < state.buffEndsAt then
+		return state.buffMult
+	end
+	return 1
 end
 
 -- Ward seal: sets the shield pool (replaces any current one) for `seconds`.
@@ -177,6 +245,7 @@ local function onDied(player: Player)
 	state.transformEndsAt = nil
 	state.shieldHp = 0
 	state.shieldEndsAt = nil
+	state.buffEndsAt = nil
 	PlayerStateService.Commit(player)
 	for _, callback in diedListeners do
 		task.spawn(callback, player)
@@ -205,6 +274,8 @@ local function onCharacter(player: Player, character: Model)
 	state.alive = true
 	state.shieldHp = 0
 	state.shieldEndsAt = nil
+	state.sp = state.maxSp
+	state.spAt = now()
 	humanoid.Died:Connect(function()
 		onDied(player)
 	end)
@@ -231,6 +302,12 @@ local function onProfileChanged(player: Player, profile: ProfileRules.ProfileV1)
 			humanoid.Health = state.hp
 		end
 	end
+	local maxSp = SkillRules.MaxSp(profile.level)
+	if maxSp ~= state.maxSp then
+		state.sp = math.min(maxSp, SkillRules.SpAt(state.sp, state.spAt, state.maxSp, now()) + maxSp - state.maxSp)
+		state.spAt = now()
+		state.maxSp = maxSp
+	end
 	PlayerStateService.Commit(player)
 end
 
@@ -238,6 +315,7 @@ local function onPlayer(player: Player)
 	local profile = profiles.Load(player)
 	-- No profile (load failed): stay not-ready so `ready` answers NOT_READY.
 	local maxHp = ProfileRules.MaxHp(if profile then profile.level else 1)
+	local maxSp = SkillRules.MaxSp(if profile then profile.level else 1)
 	states[player] = {
 		hp = maxHp,
 		maxHp = maxHp,
@@ -249,6 +327,11 @@ local function onPlayer(player: Player)
 		revision = 0,
 		shieldHp = 0,
 		shieldEndsAt = nil,
+		sp = maxSp,
+		spAt = now(),
+		maxSp = maxSp,
+		buffMult = 1,
+		buffEndsAt = nil,
 	}
 	player.CharacterAdded:Connect(function(character)
 		onCharacter(player, character)

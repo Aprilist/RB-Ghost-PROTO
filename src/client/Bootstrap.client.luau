@@ -14,6 +14,7 @@ local QuestController = require(Controllers.QuestController)
 local SealController = require(Controllers.SealController)
 local BossController = require(Controllers.BossController)
 local ClassController = require(Controllers.ClassController)
+local SkillController = require(Controllers.SkillController)
 
 PrototypeBannerController.Start()
 CameraController.Start()
@@ -30,6 +31,7 @@ QuestController.Start(NetworkClient)
 SealController.Start(NetworkClient)
 BossController.Start(NetworkClient)
 ClassController.Start(NetworkClient)
+SkillController.Start({ Network = NetworkClient, Combat = CombatController })
 
 if not NetworkClient.Start() then
 	if NetworkClient.ProfileNotReady() then

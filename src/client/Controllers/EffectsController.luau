@@ -110,8 +110,8 @@ function EffectsController.PlaySwing(root: BasePart, aim: Vector3, step: number)
 	sound(SOUNDS.swing, root.Position, 0.9 + step * 0.08)
 end
 
-function EffectsController.PlaySweep(root: BasePart, aim: Vector3)
-	local reach = Prototype.Skill.ReachStuds
+function EffectsController.PlaySweep(root: BasePart, aim: Vector3, reachStuds: number?)
+	local reach = reachStuds or Prototype.Skill.ReachStuds
 	local cf = CFrame.lookAt(root.Position, root.Position + aim) * CFrame.new(0, -1.5, -1) * CFrame.Angles(0, 0, math.rad(90))
 	fadePart(Vector3.new(0.2, 2, 2), cf, PLAYER_BLUE, 0.3, Enum.PartType.Cylinder, Vector3.new(0.2, reach * 2, reach * 2), 0.55)
 	sound(SOUNDS.sweep, root.Position, 0.8)
@@ -217,6 +217,44 @@ local function levelUp(event: Contracts.CombatFxEvent, mine: boolean)
 	end
 end
 
+-- M4 hotbar skills: combat_fx "skill:<id>" at the cast point. Circle, buff
+-- and heal are drawn for everyone (the caster too); sector, bolt and dash
+-- strikes the caster already played locally.
+local BUFF_GOLD = Color3.fromRGB(255, 210, 110)
+local HEAL_GREEN = Color3.fromRGB(130, 230, 150)
+
+local function ring(at: Vector3, diameter: number, color: Color3, duration: number)
+	local feet = CFrame.new(at - Vector3.new(0, 2.6, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	fadePart(Vector3.new(0.15, diameter * 0.5, diameter * 0.5), feet, color, duration, Enum.PartType.Cylinder, Vector3.new(0.15, diameter, diameter), 0.45)
+end
+
+local function skillFx(skill: Skills.SkillDef?, at: Vector3, mine: boolean)
+	if not skill then
+		return
+	end
+	local shape = skill.hitShape
+	if shape == "circle" then
+		sealCircle(at, skill.radiusStuds or 6)
+		sound(SOUNDS.telegraph, at, 1.6)
+	elseif shape == "buff" then
+		ring(at, 8, BUFF_GOLD, 0.6)
+		fadePart(Vector3.new(1, 1, 1), CFrame.new(at), BUFF_GOLD, 0.5, nil, Vector3.new(0.3, 9, 0.3), 0.35)
+		sound(SOUNDS.telegraph, at, 1.2)
+	elseif shape == "heal" then
+		ring(at, 7, HEAL_GREEN, 0.6)
+		fadePart(Vector3.new(1, 1, 1), CFrame.new(at), HEAL_GREEN, 0.5, nil, Vector3.new(0.3, 8, 0.3), 0.35)
+		sound(SOUNDS.telegraph, at, 1.8)
+	elseif not mine then
+		if shape == "sector" then
+			ring(at, skill.rangeStuds * 2, PLAYER_BLUE, 0.3)
+		elseif shape == "bolt" then
+			fadePart(Vector3.new(0.6, 0.1, 3), CFrame.new(at), TALISMAN_PAPER, 0.16, nil, nil, 0.2)
+		else
+			fadePart(Vector3.new(2, 4, 0.4), CFrame.new(at), PLAYER_BLUE, 0.25, nil, nil, PLAYER_FX_ALPHA)
+		end
+	end
+end
+
 local function onFx(event: Contracts.CombatFxEvent)
 	local me = (Players.LocalPlayer :: Player).UserId
 	local id = event.effectId
@@ -232,10 +270,8 @@ local function onFx(event: Contracts.CombatFxEvent)
 	elseif id == "talisman_bolt" and event.actorUserId ~= me then
 		-- Position is the middle of the throw; no aim in combat_fx, so a short flash there.
 		fadePart(Vector3.new(0.6, 0.1, 3), CFrame.new(event.position), TALISMAN_PAPER, 0.16, nil, nil, 0.2)
-	elseif id == "talisman_seal" then
-		-- Drawn from the server for everyone, the caster too: the centre is where the server put it.
-		sealCircle(event.position, Skills.talisman_seal.radiusStuds or 8)
-		sound(SOUNDS.telegraph, event.position, 1.6)
+	elseif string.sub(id, 1, 6) == "skill:" then
+		skillFx(Skills[string.sub(id, 7)], event.position, event.actorUserId == me)
 	elseif id == "dash" and event.actorUserId ~= me then
 		fadePart(Vector3.new(2, 4, 0.4), CFrame.new(event.position), PLAYER_BLUE, 0.25, nil, nil, PLAYER_FX_ALPHA)
 	elseif id == "enemy_telegraph" then

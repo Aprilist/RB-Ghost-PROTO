@@ -28,6 +28,7 @@ local snapshot: Contracts.SnapshotEvent = {
 		classId = "blade",
 		classChosen = true,
 		skillPoints = 2,
+		skills = { blade_sweep = 2 },
 		level = 2,
 		xp = 12,
 		xpToNext = 60,
@@ -50,6 +51,10 @@ local snapshot: Contracts.SnapshotEvent = {
 		profileReady = true,
 		shieldHp = 0,
 		shieldEndsAt = nil,
+		sp = 42,
+		spAt = 1230.0,
+		maxSp = 65,
+		buffEndsAt = nil,
 	},
 }
 

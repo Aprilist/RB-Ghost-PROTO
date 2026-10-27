@@ -1,8 +1,20 @@
 --!strict
--- Skill catalog (M2-A). Fields follow "Definition schema → Skill" in
--- docs/CONTRACTS.md; `arcDeg` is a proposed addition for sector hits.
--- Damage = equipped weapon baseDamage × damageMultiplier, so the P1 numbers
--- (20 / 30 / 25 with training_blade) are unchanged.
+-- Skill catalog (M2-A, M4). Fields follow "Definition schema → Skill" in
+-- docs/CONTRACTS.md. Damage = equipped weapon baseDamage × damageMultiplier
+-- × rank scale (Util/SkillRules), so the P1 numbers (20 / 30 / 25 with
+-- training_blade) are unchanged at rank 1.
+-- M4 skill system (GAME_DESIGN "ระบบสกิล"): each class has hotbar skills
+-- (Classes.skillIds, keys 1–5) unlocked by level and learned with skill
+-- points up to maxRank; every hotbar skill costs SP. Names and numbers are
+-- our own draft; tune after playtest.
+
+export type HitShape =
+	"sector" -- round the player within arcDeg
+	| "line" -- dash forward rangeStuds, hit a widthStuds strip along the path
+	| "bolt" -- the nearest one target in a narrow sector
+	| "circle" -- every target within radiusStuds of a point rangeStuds ahead (0 = on self)
+	| "buff" -- damage × buffMult for buffSec
+	| "heal" -- heal healFraction of max HP
 
 export type SkillDef = {
 	id: string,
@@ -10,120 +22,81 @@ export type SkillDef = {
 	displayNameTH: string,
 	cooldownSec: number,
 	rangeStuds: number,
-	-- "sector" round the player; "line" = dash forward rangeStuds and hit a
-	-- strip widthStuds wide along the path (M4 ninja); "bolt" = the nearest
-	-- one target in a narrow sector (M4 onmyoji); "circle" = every target
-	-- within radiusStuds of a point rangeStuds ahead (M4 onmyoji).
-	hitShape: "sector" | "line" | "bolt" | "circle",
+	hitShape: HitShape,
 	arcDeg: number,
 	widthStuds: number?,
 	radiusStuds: number?,
+	buffMult: number?,
+	buffSec: number?,
+	healFraction: number?,
 	damageMultiplier: number,
 	windupSec: number,
 	recoverySec: number,
+	-- M4: level the skill unlocks at, highest learnable rank, SP per cast.
+	unlockLevel: number,
+	maxRank: number,
+	spCost: number,
 	effectNotes: string,
 }
 
-local Skills: { [string]: SkillDef } = {
-	blade_basic = {
-		id = "blade_basic",
-		classId = "blade",
-		displayNameTH = "ฟัน",
-		cooldownSec = 0.5, -- combo interval
-		rangeStuds = 7,
-		hitShape = "sector",
-		arcDeg = 100,
-		damageMultiplier = 1,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "คอมโบ 3 จังหวะ ขวา→ซ้าย ซ้าย→ขวา ปิดกว้าง",
-	},
-	blade_sweep = {
-		id = "blade_sweep",
-		classId = "blade",
-		displayNameTH = "ฟันกวาด",
-		cooldownSec = 5,
-		rangeStuds = 7,
-		hitShape = "sector",
-		arcDeg = 160,
-		damageMultiplier = 1.5,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "วงกวาดรอบหน้า",
-	},
-	guardian_wave = {
-		id = "guardian_wave",
-		classId = "blade",
-		displayNameTH = "คลื่นผู้พิทักษ์",
-		cooldownSec = 0.5,
-		rangeStuds = 10,
-		hitShape = "sector",
-		arcDeg = 90,
-		damageMultiplier = 1.25,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "แทน basic attack ระหว่างแปลงร่าง",
-	},
-	-- M4 ninja (draft numbers): faster, lighter swings, same damage per second
-	-- as the samurai (14 / 0.35 s ≈ 20 / 0.5 s); the skill is a dash strike.
-	shade_basic = {
-		id = "shade_basic",
-		classId = "shade",
-		displayNameTH = "ฟันดาบสั้น",
-		cooldownSec = 0.35,
-		rangeStuds = 6,
-		hitShape = "sector",
-		arcDeg = 80,
-		damageMultiplier = 0.7,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "คอมโบ 3 จังหวะ เร็วแต่แคบ",
-	},
-	shade_step = {
-		id = "shade_step",
-		classId = "shade",
-		displayNameTH = "พุ่งผ่านเงา",
-		cooldownSec = 4,
-		rangeStuds = 12, -- = Prototype.Dash.DistanceStuds; movement uses the dash authority
-		hitShape = "line",
-		arcDeg = 0,
-		widthStuds = 5,
-		damageMultiplier = 1.6,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "พุ่งไปข้างหน้า ฟันทุกตัวตามแนวที่ผ่าน",
-	},
-	-- M4 onmyoji (draft numbers): ranged single target at lower damage per
-	-- second (18 / 0.6 s = 30) than melee (40) to pay for the range; the skill
-	-- is an area seal placed ahead. Pinning enemies in place comes with the
-	-- full class pass.
-	talisman_basic = {
-		id = "talisman_basic",
-		classId = "talisman",
-		displayNameTH = "ยันต์พุ่ง",
-		cooldownSec = 0.6,
-		rangeStuds = 22,
-		hitShape = "bolt",
-		arcDeg = 16,
-		damageMultiplier = 0.9,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "ปายันต์ไปโดนตัวที่ใกล้ที่สุดในแนวเล็ง",
-	},
-	talisman_seal = {
-		id = "talisman_seal",
-		classId = "talisman",
-		displayNameTH = "เขตยันต์ตรึง",
-		cooldownSec = 6,
-		rangeStuds = 14, -- centre of the circle, cut short by walls
-		hitShape = "circle",
-		arcDeg = 360,
-		radiusStuds = 8,
-		damageMultiplier = 1.5,
-		windupSec = 0,
-		recoverySec = 0,
-		effectNotes = "วางวงยันต์ข้างหน้า ทุกตัวในวงโดน",
-	},
-}
+local Skills: { [string]: SkillDef } = {}
 
-return Skills
+local function add(def: { [string]: any })
+	def.windupSec = def.windupSec or 0
+	def.recoverySec = def.recoverySec or 0
+	def.arcDeg = def.arcDeg or 0
+	def.rangeStuds = def.rangeStuds or 0
+	def.damageMultiplier = def.damageMultiplier or 0
+	def.unlockLevel = def.unlockLevel or 1
+	def.maxRank = def.maxRank or 5
+	def.spCost = def.spCost or 0
+	Skills[def.id] = table.freeze(def) :: any
+end
+
+-- Basic attacks and the transform wave: not on the hotbar, no SP, rank 1.
+add({ id = "blade_basic", classId = "blade", displayNameTH = "ฟัน", cooldownSec = 0.5, rangeStuds = 7, hitShape = "sector", arcDeg = 100, damageMultiplier = 1, maxRank = 1,
+	effectNotes = "คอมโบ 3 จังหวะ ขวา→ซ้าย ซ้าย→ขวา ปิดกว้าง" })
+add({ id = "guardian_wave", classId = "blade", displayNameTH = "คลื่นผู้พิทักษ์", cooldownSec = 0.5, rangeStuds = 10, hitShape = "sector", arcDeg = 90, damageMultiplier = 1.25, maxRank = 1,
+	effectNotes = "แทน basic attack ระหว่างแปลงร่าง" })
+add({ id = "shade_basic", classId = "shade", displayNameTH = "ฟันดาบสั้น", cooldownSec = 0.35, rangeStuds = 6, hitShape = "sector", arcDeg = 80, damageMultiplier = 0.7, maxRank = 1,
+	effectNotes = "คอมโบ 3 จังหวะ เร็วแต่แคบ" })
+add({ id = "talisman_basic", classId = "talisman", displayNameTH = "ยันต์พุ่ง", cooldownSec = 0.6, rangeStuds = 22, hitShape = "bolt", arcDeg = 16, damageMultiplier = 0.9, maxRank = 1,
+	effectNotes = "ปายันต์ไปโดนตัวที่ใกล้ที่สุดในแนวเล็ง" })
+
+-- Samurai: wide melee, one dash strike, a big single hit.
+add({ id = "blade_sweep", classId = "blade", displayNameTH = "ฟันกวาด", unlockLevel = 1, spCost = 10, cooldownSec = 5, rangeStuds = 7, hitShape = "sector", arcDeg = 160, damageMultiplier = 1.5,
+	effectNotes = "ฟันกวาดเป็นวงหน้าตัว" })
+add({ id = "blade_iai", classId = "blade", displayNameTH = "ชักดาบสายฟ้า", unlockLevel = 3, spCost = 15, cooldownSec = 8, rangeStuds = 12, hitShape = "line", widthStuds = 4, damageMultiplier = 2,
+	effectNotes = "พุ่งไปข้างหน้าแล้วชักดาบฟันทุกตัวตามแนว" })
+add({ id = "blade_whirl", classId = "blade", displayNameTH = "พายุใบดาบ", unlockLevel = 6, spCost = 20, cooldownSec = 10, rangeStuds = 9, hitShape = "sector", arcDeg = 360, damageMultiplier = 1.8,
+	effectNotes = "หมุนตัวฟันรอบทิศ" })
+add({ id = "blade_focus", classId = "blade", displayNameTH = "จิตนิ่ง", unlockLevel = 9, spCost = 20, cooldownSec = 25, hitShape = "buff", buffMult = 1.3, buffSec = 8,
+	effectNotes = "ดาเมจทุกท่า +30% ชั่วครู่" })
+add({ id = "blade_cleave", classId = "blade", displayNameTH = "ฟันผ่าภูผา", unlockLevel = 12, spCost = 25, cooldownSec = 12, rangeStuds = 9, hitShape = "sector", arcDeg = 60, damageMultiplier = 3.5,
+	effectNotes = "ฟันแรงเดียว แคบแต่หนักที่สุด" })
+
+-- Ninja: mobility, a ranged throw, bursts round itself.
+add({ id = "shade_step", classId = "shade", displayNameTH = "พุ่งผ่านเงา", unlockLevel = 1, spCost = 10, cooldownSec = 4, rangeStuds = 12, hitShape = "line", widthStuds = 5, damageMultiplier = 1.6,
+	effectNotes = "พุ่งไปข้างหน้า ฟันทุกตัวตามแนวที่ผ่าน" })
+add({ id = "shade_kunai", classId = "shade", displayNameTH = "คุไนเงา", unlockLevel = 3, spCost = 8, cooldownSec = 3, rangeStuds = 18, hitShape = "bolt", arcDeg = 20, damageMultiplier = 1.3,
+	effectNotes = "ปาคุไนไปโดนตัวที่ใกล้ที่สุดในแนวเล็ง" })
+add({ id = "shade_flurry", classId = "shade", displayNameTH = "ฟันเงาพันคม", unlockLevel = 6, spCost = 15, cooldownSec = 8, rangeStuds = 6, hitShape = "sector", arcDeg = 120, damageMultiplier = 2.4,
+	effectNotes = "ฟันรัวหน้าตัว" })
+add({ id = "shade_veil", classId = "shade", displayNameTH = "ม่านเงา", unlockLevel = 9, spCost = 15, cooldownSec = 18, hitShape = "buff", buffMult = 1.25, buffSec = 6,
+	effectNotes = "ดาเมจทุกท่า +25% ชั่วครู่" })
+add({ id = "shade_storm", classId = "shade", displayNameTH = "พายุดาวกระจาย", unlockLevel = 12, spCost = 20, cooldownSec = 12, rangeStuds = 0, hitShape = "circle", radiusStuds = 8, damageMultiplier = 2,
+	effectNotes = "ซัดดาวกระจายรอบตัว" })
+
+-- Onmyoji: ranged and area, one heal, one buff.
+add({ id = "talisman_seal", classId = "talisman", displayNameTH = "เขตยันต์ตรึง", unlockLevel = 1, spCost = 15, cooldownSec = 6, rangeStuds = 14, hitShape = "circle", radiusStuds = 8, damageMultiplier = 1.5,
+	effectNotes = "วางวงยันต์ข้างหน้า ทุกตัวในวงโดน (ยังไม่ตรึงจริง)" })
+add({ id = "talisman_thunder", classId = "talisman", displayNameTH = "ยันต์อัสนี", unlockLevel = 3, spCost = 12, cooldownSec = 5, rangeStuds = 20, hitShape = "sector", arcDeg = 20, damageMultiplier = 1.4,
+	effectNotes = "สายฟ้าแนวยาว โดนทุกตัวในแนวเล็ง" })
+add({ id = "talisman_mend", classId = "talisman", displayNameTH = "ยันต์ฟื้นกาย", unlockLevel = 6, spCost = 25, cooldownSec = 20, hitShape = "heal", healFraction = 0.25,
+	effectNotes = "ฟื้น HP 25% ของสูงสุด" })
+add({ id = "talisman_fox", classId = "talisman", displayNameTH = "จิ้งจอกไฟ", unlockLevel = 9, spCost = 25, cooldownSec = 12, rangeStuds = 14, hitShape = "circle", radiusStuds = 10, damageMultiplier = 2.2,
+	effectNotes = "เรียกไฟจิ้งจอกลงวงใหญ่ข้างหน้า" })
+add({ id = "talisman_aura", classId = "talisman", displayNameTH = "ยันต์เสริมพลัง", unlockLevel = 12, spCost = 20, cooldownSec = 25, hitShape = "buff", buffMult = 1.3, buffSec = 8,
+	effectNotes = "ดาเมจทุกท่า +30% ชั่วครู่" })
+
+return table.freeze(Skills)

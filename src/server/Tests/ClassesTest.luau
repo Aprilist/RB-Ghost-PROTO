@@ -13,6 +13,7 @@ local ClassRules = require(script.Parent.Parent.Util.ClassRules)
 local Geometry = require(script.Parent.Parent.Util.Geometry)
 local ProfileMigrations = require(script.Parent.Parent.Util.ProfileMigrations)
 local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
+local SkillRules = require(ReplicatedStorage.Shared.Util.SkillRules)
 
 type Case = { name: string, run: () -> (boolean, string?) }
 
@@ -42,7 +43,7 @@ local cases: { Case } = {
 		run = function()
 			for _, c in Classes.List do
 				if c.available then
-					for _, id in { c.basicSkillId, c.activeSkillId } do
+					for _, id in { c.basicSkillId, table.unpack(c.skillIds) } do
 						local s = Skills[id]
 						if not s or s.classId ~= c.id then
 							return false, c.id .. " → " .. id
@@ -196,6 +197,98 @@ local cases: { Case } = {
 		end,
 	},
 }
+
+
+-- M4 skill system (SkillRules).
+local function chosen(classId: string, level: number, points: number): any
+	local p: any = ProfileRules.New(1, classId)
+	p.classChosen = true
+	p.level = level
+	p.skillPoints = points
+	return p
+end
+
+local skillCases: { Case } = {
+	{
+		name = "every class has 5 hotbar skills, unlocking in order within the level cap, all costing SP",
+		run = function()
+			for _, c in Classes.List do
+				if #c.skillIds ~= 5 then
+					return false, c.id .. " has " .. #c.skillIds
+				end
+				local last = 0
+				for i, id in c.skillIds do
+					local s = Skills[id]
+					if s.unlockLevel < last or s.unlockLevel > ProfileRules.LevelCap or s.spCost <= 0 then
+						return false, id
+					end
+					if i == 1 and s.unlockLevel ~= 1 then
+						return false, id .. " slot 1 must unlock at 1"
+					end
+					last = s.unlockLevel
+				end
+			end
+			return true, nil
+		end,
+	},
+	{
+		name = "slot 1 is known at rank 1 for free; other slots start unlearned",
+		run = function()
+			local p = chosen("blade", 1, 0)
+			return SkillRules.Rank(p, "blade_sweep") == 1 and SkillRules.Rank(p, "blade_iai") == 0
+				and SkillRules.CanCast(p, "blade_sweep") == "OK" and SkillRules.CanCast(p, "blade_iai") == "SKILL_LOCKED"
+				and SkillRules.CanCast(p, "shade_step") == "NOT_OWNED",
+				nil
+		end,
+	},
+	{
+		name = "learn: level gate, points, max rank, other class, unknown, not chosen",
+		run = function()
+			local p = chosen("blade", 3, 2)
+			local low = SkillRules.Learn(chosen("blade", 2, 5), "blade_iai")
+			local ok1 = SkillRules.Learn(p, "blade_iai")
+			local ok2 = SkillRules.Learn(p, "blade_iai")
+			local broke = SkillRules.Learn(p, "blade_iai")
+			local other = SkillRules.Learn(chosen("blade", 20, 5), "shade_step")
+			local unknown = SkillRules.Learn(chosen("blade", 20, 5), "nope")
+			local fresh: any = ProfileRules.New(1, "blade")
+			fresh.skillPoints = 5
+			local notChosen = SkillRules.Learn(fresh, "blade_sweep")
+			local maxed = chosen("blade", 20, 10)
+			for _ = 1, 4 do
+				SkillRules.Learn(maxed, "blade_sweep")
+			end
+			local top = SkillRules.Learn(maxed, "blade_sweep")
+			local ok = low == "SKILL_LOCKED" and ok1 == "OK" and ok2 == "OK" and broke == "NO_SKILL_POINTS"
+				and p.skills.blade_iai == 2 and p.skillPoints == 0 and SkillRules.CanCast(p, "blade_iai") == "OK"
+				and other == "NOT_OWNED" and unknown == "INVALID_PAYLOAD" and notChosen == "NOT_READY"
+				and top == "MAX_RANK" and maxed.skills.blade_sweep == 5 and maxed.skillPoints == 6
+				and ProfileRules.Validate(p) and ProfileRules.Validate(maxed)
+			return ok, table.concat({ low, ok1, ok2, broke, other, unknown, notChosen, top }, "/")
+		end,
+	},
+	{
+		name = "rank scales damage +15% a rank; rank 1 slot-1 damage is the P1 number",
+		run = function()
+			local sweep = Skills.blade_sweep
+			local r1, r5 = SkillRules.Damage(sweep, 1), SkillRules.Damage(sweep, 5)
+			return r1 == Prototype.Skill.Damage and r5 == math.floor(30 * 1.6 + 0.5), string.format("%d → %d", r1, r5)
+		end,
+	},
+	{
+		name = "SP: max grows with level, regenerates to the max and no further",
+		run = function()
+			local m1, m10 = SkillRules.MaxSp(1), SkillRules.MaxSp(10)
+			local after2 = SkillRules.SpAt(10, 100, m1, 102)
+			local capped = SkillRules.SpAt(10, 100, m1, 10000)
+			return m1 == 60 and m10 == 105 and after2 == 10 + 2 * SkillRules.SpRegenPerSec and capped == m1,
+				string.format("max %d/%d", m1, m10)
+		end,
+	},
+}
+for _, case in skillCases do
+	table.insert(cases, case)
+end
 
 local ClassesTest = {}
 
