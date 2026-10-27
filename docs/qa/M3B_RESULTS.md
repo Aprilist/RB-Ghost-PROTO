@@ -22,7 +22,7 @@ Claude 27 ต.ค. 2026 | แผน: `handoff/M3_PLAN_PROPOSAL.md` (Director ใ
 - ข้อ 6 ผ่าน: ปิด API access บน place ที่ publish แล้ว → `[ProfileService] memory mode: ... (502: ... Studio access to APIs is not allowed.)` (warn), โหลดโปรไฟล์ได้ ไม่มี `ready failed`, test 142/142 (มีเพิ่มมาหนึ่งข้อจากงานอื่น) · มีบรรทัดแดง `DataStoreService: StudioAccessToApisNotAllowed` หนึ่งบรรทัด เป็น log ของ engine เองตอน probe (`GetAsync` อยู่ใน pcall) ไม่ใช่ script error
 - ข้อ 3 ส่วนค่าจากการสู้ + lease หมดอายุ ผ่าน: เขียนค่าลง record (Lv 3, xp 5, เหรียญ 40, แก่นวิญญาณ 30, ผนึก ember, q01 claimed, q02 2/5) พร้อม `session` ของ `dead-server` ที่หมดอายุแล้ว → Play ยึด lease ได้ทันที (`session.jobId=studio`), HUD แสดงตรงทุกช่อง, เกจ 0, เกิดที่ `mistwood_gate` · หยุด → ค่าเดิมครบ `session=nil` (ค่าถูกเขียนตรงเข้า store ไม่ได้มาจากการสู้จริง ทางบันทึกเป็น `Mutate` เดียวกับ checkpoint/เควสต์ที่ผ่านแล้ว)
 - M3-C ผ่าน: lease ของ server อื่นยังไม่หมดอายุ → client ขึ้นข้อความค้าง "โหลดข้อมูลตัวละครไม่ได้ ออกแล้วเข้าใหม่อีกครั้ง" (ใช้ code `NOT_READY` เดิม ไม่ต้องมี `profile_status`, `handoff/M3_CONTRACT_PROPOSALS.md` ข้อ 5) · ล้าง lease ปลอมหลังทดสอบ
-- ข้อสังเกต: ป้าย "PROTOTYPE — progress resets" ยังขึ้นใน datastore mode ซึ่งไม่จริงแล้ว
+- ป้ายบนจอตามโหมด: datastore → "PROTOTYPE — progress saved" (server ตั้ง attribute `ProfileMode` บน ReplicatedStorage), memory → "progress resets" เหมือนเดิม · ตรวจใน datastore mode แล้ว test 142/142
 - ยังไม่ได้ทดสอบ: server ล่มจริงกลางเกม (ย้อนได้ไม่เกิน 1 รอบ autosave), perf 12 คน, touch จริง (M3-D)
 
 ## ไฟล์ที่เปลี่ยน

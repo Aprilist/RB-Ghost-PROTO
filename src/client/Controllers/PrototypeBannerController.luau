@@ -1,5 +1,6 @@
 --!strict
--- Always-visible "PROTOTYPE — progress resets" label, plus a short local
+-- Always-visible "PROTOTYPE — progress resets" label ("progress saved" when
+-- the server keeps profiles on DataStore), plus a short local
 -- line showing which action was pressed while combat is not wired (P1-A).
 
 local Players = game:GetService("Players")
@@ -50,7 +51,12 @@ function PrototypeBannerController.Start()
 	banner.TextColor3 = Color3.fromRGB(255, 196, 120)
 	banner.Font = Enum.Font.GothamBold
 	banner.TextSize = 14
-	banner.Text = Prototype.Label
+	local function showMode()
+		local saved = ReplicatedStorage:GetAttribute(Prototype.ProfileModeAttribute) == "datastore"
+		banner.Text = if saved then Prototype.LabelSaved else Prototype.Label
+	end
+	showMode()
+	ReplicatedStorage:GetAttributeChangedSignal(Prototype.ProfileModeAttribute):Connect(showMode)
 	banner.Active = false
 	banner.Parent = gui
 	local corner = Instance.new("UICorner")

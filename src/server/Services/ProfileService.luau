@@ -193,6 +193,7 @@ end
 function ProfileService.Init()
 	local store, mode, why = pickStore()
 	ProfileService.Mode = mode
+	game:GetService("ReplicatedStorage"):SetAttribute(Prototype.ProfileModeAttribute, mode)
 	storage = ProfileStorage.new(store, if game.JobId ~= "" then game.JobId else "studio")
 	if ProfileService.Mode == "datastore" then
 		print("[ProfileService] datastore mode:", STORE_NAME, why)

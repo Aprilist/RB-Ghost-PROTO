@@ -19,6 +19,9 @@ local wisp = Enemies.lantern_wisp
 
 local Prototype = {
 	Label = "PROTOTYPE — progress resets",
+	LabelSaved = "PROTOTYPE — progress saved", -- profile on DataStore (M3)
+	-- ReplicatedStorage attribute: ProfileService.Mode ("memory" | "datastore")
+	ProfileModeAttribute = "ProfileMode",
 	WorldNamespace = "SpiritWardPrototype",
 	ClassId = "blade",
 
