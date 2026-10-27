@@ -10,9 +10,22 @@
 | 2 | seal 2 แบบมีผลต่างกัน และแสดงต้นทุนก่อนยืนยัน | ember (ไฟลุก) ≠ ward (โล่), เมนูแสดงราคา และ **เพิ่มขั้นยืนยันราคาแล้ว** (กดครั้งแรกขึ้นราคา กดซ้ำจึงหัก) | M2-E: "ผนึกผ่าน" (ก่อนเพิ่มขั้นยืนยัน) · **รันจริง 27 ต.ค. (Claude ผ่าน MCP):** กดครั้งแรกขึ้นราคา ไม่ส่ง request ไม่หักเงิน ดูหัวข้อ "ผลรันผ่าน Studio MCP" | partial | ขั้นยืนยันราคาผ่านแล้ว เหลือ Director ดูผลต่างของ ember/ward ระหว่างเล่น (ข้อ 1) |
 | 3 | essence ไม่ติดลบ; duplicate request ไม่หักหรือ grant ซ้ำ | `SealRules.Apply` ตรวจและหักใน Mutate เดียว, ledger ของรางวัลศัตรู/บอส, `ProfileRules.Validate` กันติดลบ | test ทั้ง 3 ชุดผ่านใน Studio · ยิง apply_seal ซ้ำ 9 ครั้งจาก client ตอนแก่นวิญญาณ 0: ปฏิเสธทุกครั้ง แก่นวิญญาณคงที่ | partial | **ยังไม่ได้ยิงซ้ำตอนมีแก่นวิญญาณ ≥ 30** (เส้นทางหักเงินจริง) ทำตามขั้น A ด้านล่างตอนเล่นถึง q04 |
 | 4 | quest one-time claim ซ้ำไม่ได้; prerequisites ทำงาน | `QuestRules` (pure), `claim_quest` จ่ายใน Mutate เดียวกับที่ mark claimed | `QuestRulesTest` 11/11 ผ่าน · ยิง claim_quest q01 ซ้ำ 9 ครั้ง: OK ครั้งเดียว เหรียญ +5 ครั้งเดียว · รับ q02/q03 ก่อนพร้อม → `QUEST_NOT_READY` | **ผ่าน (มีหลักฐาน)** | — |
-| 5 | boss 1/2/8 participants; all-dead reset; late join กติกาถูกต้อง | `EncounterService` + `BossService` ตัวกรองสมาชิก reset 5 วิ | `BossRulesTest` / `EncounterRulesTest` (เฉพาะกฎ pure) | unverified / **blocked** บางส่วน | 1 คนเล่นเองได้ · 2 คนต้องมี client ที่สอง (Studio Test → Local Server + 2 Players) · 8 คนต้องมี 8 clients หรือเครื่องที่พอ ห้ามใช้ mock player |
-| 6 | รางวัลผู้ตาย/ออกพื้นที่/ดาเมจต่ำกว่าเกณฑ์ตรง contract | `EncounterRules.Payout` + `pay()` | `EncounterRulesTest` ข้อ payout | unverified | ต้องมี 2 clients: ตายก่อนบอสล้ม, เดินออกลาน, ตีน้อยกว่า 150 ดาเมจ แล้วดูว่าไม่ได้รางวัล |
+| 5 | boss 1/2/8 participants; all-dead reset; late join กติกาถูกต้อง | `EncounterService` + `BossService` ตัวกรองสมาชิก reset 5 วิ | `BossRulesTest` / `EncounterRulesTest` (เฉพาะกฎ pure) · **bot บน client จริง 28 ต.ค.** ดูหัวข้อ "บอสหลายคนด้วย bot" | partial | 1 คน และ 3 คน: เปิด/ล็อก/late join/ตายแล้วออก/reset ผ่าน · **ยังไม่เคยมีรอบที่บอสล้มกับหลายคน** · 8 คนยังไม่ได้ |
+| 6 | รางวัลผู้ตาย/ออกพื้นที่/ดาเมจต่ำกว่าเกณฑ์ตรง contract | `EncounterRules.Payout` + `pay()` | `EncounterRulesTest` ข้อ payout · bot: ตายแล้วไม่ได้รางวัล (รอบ reset) | partial | ทางจ่ายเมื่อบอสล้มยังไม่ได้รัน: bot หลบไม่ทันจนตายหมดก่อนบอสล้มทั้ง 2 รอบ ต้องมีคนเล่นจริง 2 คน (ตีเต็ม / ตีไม่ถึง 150 / เดินออกลาน) |
 | 7 | HUD desktop และ touch ไม่บังท่าเตือน; loading/error มีทางออก | HUD มุมซ้ายบน, ตัวติดตามเควส, เมนูผนึก/บทพูดกลางจอ, แถบบอสกลางบน (จอเตี้ย < 500px ย้ายขึ้นแถบบนสุด) | **รันจริง 27 ต.ค. (Claude ผ่าน MCP, touch = Device Simulator ไม่ใช่เครื่องจริง):** วัดจุดวงเตือนบนจอเทียบกรอบ UI ระหว่างสู้บอส 20 วิ · desktop 0% · Galaxy A06 40% → **6.7%** หลังแก้ · iPhone 17 Pro 4.7% · error เชื่อมต่อค้างบนจอแล้ว | **ผ่าน (emulator)** | ยังไม่ได้ลองมือถือจริง (M3) |
+
+## บอสหลายคนด้วย bot (Claude 28 ต.ค. 2026, build `e604708`, ข้อ 5–6)
+
+Bot ทดสอบรันใน client จริงผ่าน Studio MCP (ไม่ใช่ mock player): เดินด้วย pathfinding ไปประตูลาน ส่ง `basic_attack`/`cast_skill` ผ่าน remote จริง และวิ่งหนีออก ~22 studs ทุกครั้งที่บอสอยู่ใน `telegraph` · เก็บ `encounter`/`notice` ที่ client ได้รับจริง · bot อยู่ใน scratchpad ไม่ได้เข้า repo
+
+| รอบ | ตั้งค่า | ผลที่ client ได้รับ | ตรงกฎ |
+|---|---|---|---|
+| A | Play solo 1 คน | เข้าลาน → `open` → 8 วิ → `fighting` · ตาย → notice "ออกจากศึก…รอรอบหน้า" + `joined=false` · 5 วิ → `reset` บอสกลับ 3000 · ไม่มีรางวัลบอส | ✓ |
+| B | Local Server 3 คน: P1+P2 เข้าพร้อมกัน, P3 รอนอกลานจนบอสโดนตีแล้ว +10 วิ | P1/P2 `open joined=true` → `fighting joined=true` · P3 เข้าหลังล็อก: notice "ศึก…กำลังดำเนินอยู่ รอรอบหน้า" + `fighting joined=false` และ **บอสไม่เล็ง P3 เลย** (HP 120 ตลอดศึก) · P1/P2 ตายที่บอส 1245 → `reset` → P3 ที่ยืนในลานได้ `open joined=true` ของรอบใหม่ | ✓ |
+| C | Local Server 3 คนเข้าพร้อมกัน: P1/P2 ตีเต็ม, P3 ตี 4 ครั้ง (80 < 150) แล้วหลบมุม | ทั้ง 3 `joined=true` · P1 ตายก่อน, P2 ตายที่บอส 1080 · P3 รอดคนเดียวจนตาย → `reset` · ไม่มีใครได้รางวัลบอส | ✓ (ทาง too_little ไม่ได้พิสูจน์ เพราะบอสไม่ล้ม) |
+
+- **ทางจ่ายรางวัลเมื่อบอสล้มยังไม่เคยรันกับหลายคน** bot ตีบอสได้ ~1,900 จาก 3,000 ก่อนตายหมด ต้องให้คนเล่นจริง
+- ข้อสังเกตด้านความยาก (draft): bot ที่หนีเฉพาะช่วง telegraph เสีย HP ราว 1–2 ต่อวินาทีจากวง ring และผีที่บอสเรียก ผู้เล่น Lv 3 HP 120 อยู่ได้ราว 60–120 วิ สั้นกว่าเวลาฆ่าบอสที่ประเมินไว้ 2–4 นาที คนเล่นจริงหลบได้ดีกว่า bot ใช้ข้อมูลนี้ตอนปรับสมดุลเท่านั้น ไม่ใช่ผล TTK
 
 ## ผลรันจริงที่มี: Output ตอนกด Play (Director ส่ง 27 ต.ค. 2026 เวลา 21:23)
 
