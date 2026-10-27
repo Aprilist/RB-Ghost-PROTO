@@ -9,7 +9,7 @@
 | DEC-003 | ชื่อเกม | Project Spirit Ward / หมู่บ้านม่านวิญญาณ | working title | เปลี่ยนได้ก่อน branding/publication |
 | DEC-004 | scope | 1 class prototype → 3 classes alpha | baseline proposal | ลดความเสี่ยงของ combat ก่อนผลิตคอนเทนต์ |
 | DEC-005 | ทีม | Claude content/UX/client; Codex server/contracts/integration | baseline proposal ตามคำขอแบ่งงาน | พร้อมส่ง batch แรก แต่ยังไม่มี Claude run |
-| DEC-006 | persistence | server-owned profile + memory adapter ระหว่าง prototype | baseline proposal | schema/lease ต้องตรึงใน CD-01; persistence ผ่าน M3 |
+| DEC-006 | persistence | server-owned profile บน DataStore พร้อม lease (envelope ใน CONTRACTS) · memory เฉพาะ Studio ที่ place ยังไม่ publish หรือปิด API access · server จริงไม่ถอยไป memory | ปรับ 28 ต.ค. 2026 ตาม M3-B; ทดสอบบน place ทดสอบแล้ว (`docs/qa/M3D_ACCEPTANCE.md`) | ต้องตั้งชื่อ store production แทน `_dev` ก่อน publish สาธารณะ |
 | DEC-007 | roster/จำนวนคน | 12 คนต่อ server (เดิม 8; ผู้ใช้เลือก 27 ต.ค. 2026 ให้บ้านผู้เล่น 12 หลังตามผังหมู่บ้านใหม่); 1 shared boss arena | confirmed by user 27 ต.ค. 2026, awaiting playtest | ต้องตั้ง Max Players ใน Game Settings เป็น 12; enemy count, boss eligibility และ performance ต้องดูใหม่ |
 | DEC-008 | duplicate upgrade | เพิ่ม expected weapon state/revision ให้ apply_seal | pending CD-01 | ต้องปิดก่อน implementation; cache อย่างเดียวไม่พอ |
 | DEC-009 | ธีม | ญี่ปุ่น | confirmed by user 27 ต.ค. 2026 | โลก/อาชีพ/asset ใช้ญี่ปุ่นแฟนตาซี รายละเอียด art เป็นข้อเสนอ v0.2 |
@@ -18,5 +18,6 @@
 | DEC-012 | Remote namespace | SpiritWardRemotes + OwnedBy=SpiritWard; reuse owned instances, preserve collisions | Codex แก้และรัน regression ผ่าน 27 ต.ค. 2026 | ไม่ลบ Remotes เดิมของ place; QA scripts ใช้ namespace ใหม่ |
 | DEC-013 | Jitter allowance | จำกัดเป็น walk credit ที่มีเพดาน แทนแจก slack ใหม่ทุก sample | Codex แก้หลังพบ pure simulation speed28 ผ่านต่อเนื่อง; tests15/15 | รักษาความทน jitter แต่ไม่สะสมระยะเดินเกินจาก sampling |
 | DEC-014 | Touch action layout | CAS action buttons 2×2 ตาม Prototype.Input | Codex ตรวจ iPhone XR แล้วแก้ปุ่มฟันล้นจอ | ผ่าน simulator landscape หนึ่งขนาด; มือถือจริงยังไม่รับรอง |
+| DEC-015 | ทีม (แทน DEC-005, DEC-010) | ไม่ใช้ Codex แล้ว Claude ทำทั้ง implementation, design spec, contracts, review และ integration · Director ตัดสิน decision, เกณฑ์ acceptance และงานภาพ | confirmed by user 28 ต.ค. 2026 | ไม่ต้องเขียนใบเสนอรอผู้ตรวจ แก้ CONTRACTS/DECISIONS/ACCEPTANCE ได้เอง แต่การเปลี่ยน decision หรือเกณฑ์ acceptance ต้องถาม Director ก่อน · ชื่อ Codex ในเอกสารเก่าเป็นประวัติ |
 
 คำว่า baseline proposal คือค่าที่ใช้เดินหน้าออกแบบได้ตามขอบเขตที่ผู้ใช้มอบหมาย ไม่ใช่การยืนยันว่าได้ playtest หรือผู้ใช้เลือกค่าทุกข้อแล้ว

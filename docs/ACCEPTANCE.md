@@ -40,7 +40,7 @@
 - [ ] จำลอง load fail แล้วไม่เขียน default ทับ record
 - [ ] สอง session ใช้ profile พร้อมกันไม่ได้; stale owner save ไม่ทับใหม่
 - [ ] duplicate save/retry, queue ordering, migration และ shutdown ผ่าน
-- [ ] ตรวจงบ network, memory, frame time ใน scene ผู้เล่น 8 คน
+- [ ] ตรวจงบ network, memory, frame time ใน scene ผู้เล่น 12 คน (DEC-007)
 - [ ] ทดสอบ touch จริง ระบุรุ่นเครื่อง/ผล; emulator อย่างเดียวไม่พออ้าง mobile ผ่าน
 
 ## รายงานผล

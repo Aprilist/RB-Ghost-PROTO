@@ -1,6 +1,6 @@
 # Shared Contracts v0.2
 
-สถานะ: draft baseline สำหรับเริ่ม content/UX; Codex ต้องทำ CD-01 ให้ตรงกับไฟล์ types ก่อน Claude เริ่ม runtime
+สถานะ: draft baseline; ไฟล์ types (`src/shared/Types/Contracts.luau`) ต้องตรงกับเอกสารนี้ · M3 persistence รับเข้าแล้ว 28 ต.ค. 2026
 
 ## IDs และข้อมูล
 
@@ -24,6 +24,19 @@ ProfileV1 (persistent): schemaVersion, revision, userId, classId, level, xp, coi
 - xp เป็น EXP ภายในเลเวลปัจจุบัน ใช้ curve หักทีละขั้นเมื่อเพิ่มเลเวล ที่ cap คง xp = 0
 - revision ใช้เพิ่มทุก authoritative mutation ไม่ใช่ schemaVersion
 - session metadata/fencing อยู่ใน record envelope ฝั่ง server ไม่ส่ง client
+- checkpointId คือ attribute `CheckpointId` ของ SpawnLocation ที่ tag `Checkpoint` ไม่ใช้ชื่อ model เป็น key; id ที่ไม่มีในฉากถูกข้ามตอนเข้าเกม
+
+Profile record (M3, server เท่านั้น): DataStore key `u_<UserId>`, store `SpiritWardProfile_<env>` (place ทดสอบใช้ `dev`)
+
+```
+{ envelopeVersion = 1, profile = ProfileV1, session = { jobId, token, leaseUntil } | nil, savedAt }
+```
+
+- `envelopeVersion` แยกจาก `ProfileV1.schemaVersion`; record ที่ใหม่กว่าที่ server รู้จักถูกปฏิเสธ ไม่ลดเวอร์ชัน
+- lease 300 วินาที ต่ออายุทุก autosave (60 วินาที); token ใหม่ต่อการเข้าเกม; save เขียนเฉพาะเมื่อ token ตรง ไม่ตรง = `lease_lost` → server หยุดให้รางวัลแล้ว kick พร้อมข้อความ
+- server อื่นถือ lease ที่ยังไม่หมด → ไม่เขียนอะไร retry แบบจำกัด; สร้าง default เฉพาะ key ที่ไม่มีจริง ไม่ใช่ตอน call error
+- ออกเกม/`BindToClose` = save + ล้าง `session`
+- โหลดไม่ได้: `profileReady = false`, `ready` ตอบ `NOT_READY` (ไม่มี state event แยก) client แสดงข้อความค้างให้ออกแล้วเข้าใหม่
 
 SessionState (ไม่ save): hp/maxHp, spiritGauge, transformEndsAt, cooldowns, alive, profileReady, encounterId และตำแหน่ง runtime ใช้ server clock สำหรับ endsAt; client แสดงผ่านเวลาที่ sync กับ server
 
