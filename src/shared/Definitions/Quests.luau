@@ -1,0 +1,102 @@
+--!strict
+-- Quest catalog (draft for M2-D; nothing reads it at runtime yet).
+-- Fields follow "Definition schema → Quest" in docs/CONTRACTS.md. Story beats
+-- follow GAME_DESIGN v0.2; dialogue is placeholder for Director review.
+
+export type ObjectiveType = "talk" | "defeat" | "collect" | "apply_seal" | "defeat_boss"
+
+export type QuestDef = {
+	id: string,
+	titleTH: string,
+	prerequisiteQuestId: string?,
+	objectiveType: ObjectiveType,
+	targetId: string,
+	targetCount: number,
+	rewardXp: number,
+	rewardCoins: number,
+	rewardEssence: number,
+	dialogueStart: string,
+	dialogueComplete: string,
+	repeatable: boolean,
+	draft: boolean,
+}
+
+local Quests: { [string]: QuestDef } = {
+	q01_meet_keeper = {
+		id = "q01_meet_keeper",
+		titleTH = "พบผู้ดูแลศาล",
+		prerequisiteQuestId = nil,
+		objectiveType = "talk",
+		targetId = "npc_shrine_keeper",
+		targetCount = 1,
+		rewardXp = 10,
+		rewardCoins = 5,
+		rewardEssence = 0,
+		dialogueStart = "ม่านวิญญาณแตกแล้ว ไปหาผู้ดูแลศาลกลางหมู่บ้าน",
+		dialogueComplete = "เจ้าคือผู้ฝึกหัดที่ส่งมาสินะ ดาบเล่มนั้นยังพอใช้ได้",
+		repeatable = false,
+		draft = true,
+	},
+	q02_first_hunt = {
+		id = "q02_first_hunt",
+		titleTH = "ฝึกปราบผี",
+		prerequisiteQuestId = "q01_meet_keeper",
+		objectiveType = "defeat",
+		targetId = "lantern_wisp",
+		targetCount = 5,
+		rewardXp = 30,
+		rewardCoins = 10,
+		rewardEssence = 10,
+		dialogueStart = "ผีโคมลอยออกมาที่ชายป่า ปราบให้ได้ห้าตัว",
+		dialogueComplete = "ดีมาก รู้สึกถึงวิญญาณที่ไหลเข้าดาบไหม",
+		repeatable = false,
+		draft = true,
+	},
+	q03_gather_traces = {
+		id = "q03_gather_traces",
+		titleTH = "สะสมร่องรอย",
+		prerequisiteQuestId = "q02_first_hunt",
+		objectiveType = "collect",
+		targetId = "veil_trace",
+		targetCount = 3,
+		rewardXp = 40,
+		rewardCoins = 15,
+		rewardEssence = 15,
+		dialogueStart = "ร่องรอยม่านที่แตกอยู่ลึกในป่าม่านหมอก เก็บมาสามชิ้น",
+		dialogueComplete = "รอยเหล่านี้ชี้ไปที่ศาลเจ้าร้าง",
+		repeatable = false,
+		draft = true,
+	},
+	q04_try_seal = {
+		id = "q04_try_seal",
+		titleTH = "ทดลองผนึก",
+		prerequisiteQuestId = "q03_gather_traces",
+		objectiveType = "apply_seal",
+		targetId = "any",
+		targetCount = 1,
+		rewardXp = 20,
+		rewardCoins = 10,
+		rewardEssence = 0,
+		dialogueStart = "ใช้แก่นวิญญาณผนึกดาบที่ศาลก่อนไปเผชิญหน้ามัน",
+		dialogueComplete = "ผนึกติดแน่นแล้ว ไปที่ศาลเจ้าร้างเถอะ",
+		repeatable = false,
+		draft = true,
+	},
+	q05_defeat_keeper = {
+		id = "q05_defeat_keeper",
+		titleTH = "ปราบผู้เฝ้าศาล",
+		prerequisiteQuestId = "q04_try_seal",
+		objectiveType = "defeat_boss",
+		targetId = "extinguished_keeper",
+		targetCount = 1,
+		rewardXp = 100,
+		rewardCoins = 50,
+		rewardEssence = 30,
+		dialogueStart = "ผู้เฝ้าโคมดับรออยู่หลังศาลหลัก",
+		dialogueComplete = "โคมดวงสุดท้ายกลับมาสว่างแล้ว",
+		repeatable = false,
+		draft = true,
+	},
+}
+
+return Quests
