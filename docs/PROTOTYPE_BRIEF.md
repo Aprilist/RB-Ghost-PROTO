@@ -1,6 +1,6 @@
 # P1 — Playable combat prototype
 
-วันที่ 27 ตุลาคม 2026 | Designer/reviewer: Codex | Implementation: Claude | Director: ผู้ใช้
+วันที่ 27 ตุลาคม 2026 | Design/review/implementation: Claude (DEC-015) | Director: ผู้ใช้
 
 ## เป้าหมายตรวจรับ
 

@@ -54,4 +54,4 @@
 
 สร้าง greybox ก่อนงานละเอียด ทดสอบมองหลังตัวละคร/ข้างผนัง/ใต้หลังคาและบนบันได โมเดลเสาต้องมี collision เหมาะสม ใบไม้/อนุภาคตกแต่งไม่ขวางการตรวจโจมตีหรือการเดิน AI สัญญาณโจมตีอ่านได้ทั้งพื้นไม้ หิน และดิน
 
-Claude ส่ง art brief, รายการ modular assets และข้อกำหนด animation ภายใน CL-01/CL-02 ยังไม่ต้องสร้าง asset production จน M1 ผ่าน Codex รับเข้า manifest และทดสอบใน Studio ตามลำดับ
+Claude ส่ง art brief, รายการ modular assets และข้อกำหนด animation ภายใน CL-01/CL-02 ยังไม่ต้องสร้าง asset production จน M1 ผ่าน แล้วลงทะเบียนใน manifest และทดสอบใน Studio ตามลำดับ

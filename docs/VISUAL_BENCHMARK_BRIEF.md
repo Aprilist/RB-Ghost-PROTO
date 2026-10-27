@@ -14,14 +14,14 @@
 
 ## สิ่งที่ต้องรักษา
 
-ใช้ `docs/ART_DIRECTION.md` เป็นทิศทาง อย่าเปลี่ยนขนาดลาน 100×100, spawn/checkpoint/enemy IDs, test wall, ramp/tier หรือระยะโจมตี/HP/reward/cooldown เพื่อให้ภาพเข้าที่ อย่าแตะ movement/network contracts ในงานภาพนี้ และรักษา SpiritWardRemotes/finite jitter credit/mobile layout ที่ Codex แก้
+ใช้ `docs/ART_DIRECTION.md` เป็นทิศทาง อย่าเปลี่ยนขนาดลาน 100×100, spawn/checkpoint/enemy IDs, test wall, ramp/tier หรือระยะโจมตี/HP/reward/cooldown เพื่อให้ภาพเข้าที่ อย่าแตะ movement/network contracts ในงานภาพนี้ และรักษา SpiritWardRemotes/finite jitter credit/mobile layout ตาม DEC-012 ถึง DEC-014
 
 ไม่เพิ่มเควสต์ อาชีพ พื้นที่ใหม่ ระบบเงิน หรือร้านค้า ไม่ใช้ภาพ/โมเดล/เสียงจากเกมหรืออนิเมะอื่นโดยไม่มีสิทธิ์ ลงทะเบียน source/placeholder ใน assets/ASSET_MANIFEST.md
 
 ## วิธีส่ง
 
-ส่งเป็น source ที่สร้างฉากซ้ำได้จาก repo พร้อมรายชื่อไฟล์ วิธีเปิด และ asset manifest ถ้าไม่มี Studio ให้ส่ง source + ระบุ unverified เพื่อให้ Codex รัน อย่าอ้าง FPS/ภาพหรือโมบายผ่านจากการคาดคะเน
+ส่งเป็น source ที่สร้างฉากซ้ำได้จาก repo พร้อมรายชื่อไฟล์ วิธีเปิด และ asset manifest ถ้าไม่มี Studio ให้ส่ง source + ระบุ unverified จนกว่าจะได้รันจริง อย่าอ้าง FPS/ภาพหรือโมบายผ่านจากการคาดคะเน
 
-Codex จะตรวจมุมกล้อง spawn/combat/ใกล้ผนัง และ iPhone XR อีกครั้ง Director เป็นผู้ตัดสินงานภาพก่อนผลิตทั้งหมู่บ้าน
+Claude ตรวจมุมกล้อง spawn/combat/ใกล้ผนัง และ iPhone XR อีกครั้ง Director เป็นผู้ตัดสินงานภาพก่อนผลิตทั้งหมู่บ้าน
 
 เกณฑ์ตรวจ: ตัวละครกับดาบอ่านง่าย, ผีต่างจากพื้นหลัง, พื้นที่อันตรายเด่นกว่าเอฟเฟกต์สวยงาม, ปุ่มมือถือครบในจอ และยังเล่น loop เดิมได้

@@ -1,6 +1,6 @@
 # Game Design Document — Project Spirit Ward
 
-Version 0.2 | 27 ตุลาคม 2026 | Owner: ผู้ใช้ | Integration: Codex
+Version 0.2 | 27 ตุลาคม 2026 | Owner: ผู้ใช้ | Integration: Claude
 
 ## แนวคิด
 
