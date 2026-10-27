@@ -23,6 +23,9 @@ local sealMenuListeners: { (Contracts.SealMenuEvent) -> () } = {}
 local encounterListeners: { (Contracts.EncounterEvent) -> () } = {}
 local pendingActions: { [string]: string } = {}
 local readyOk = false
+-- The server answered `ready` with NOT_READY: it is up but this player's
+-- profile did not load (store error or held by another server, M3).
+local profileNotReady = false
 
 function NetworkClient.Send(action: Contracts.ActionName, payload: { [string]: any }): string?
 	local remote = actionRequest
@@ -74,8 +77,9 @@ end
 local function onResult(result: Contracts.ActionResult)
 	local action = pendingActions[result.requestId] or "?"
 	pendingActions[result.requestId] = nil
-	if action == "ready" and result.ok then
-		readyOk = true
+	if action == "ready" then
+		readyOk = readyOk or result.ok
+		profileNotReady = not result.ok and result.code == "NOT_READY"
 	end
 	for _, callback in resultListeners do
 		task.spawn(callback, result, action)
@@ -113,6 +117,11 @@ local function onState(event: Contracts.StateEvent)
 			task.spawn(callback, event)
 		end
 	end
+end
+
+-- After Start failed: true when the server was reached but the profile did not load.
+function NetworkClient.ProfileNotReady(): boolean
+	return profileNotReady
 end
 
 -- Returns false when the server could not be reached; the caller shows it.

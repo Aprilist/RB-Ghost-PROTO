@@ -30,8 +30,13 @@ SealController.Start(NetworkClient)
 BossController.Start(NetworkClient)
 
 if not NetworkClient.Start() then
-	PrototypeBannerController.ShowAction("เชื่อม server ไม่ได้ ลองออกแล้วเข้าใหม่", true)
-	warn("[SpiritWard] Could not reach server remotes or ready failed.")
+	if NetworkClient.ProfileNotReady() then
+		PrototypeBannerController.ShowAction("โหลดข้อมูลตัวละครไม่ได้ ออกแล้วเข้าใหม่อีกครั้ง", true)
+		warn("[SpiritWard] Profile did not load (ready answered NOT_READY).")
+	else
+		PrototypeBannerController.ShowAction("เชื่อม server ไม่ได้ ลองออกแล้วเข้าใหม่", true)
+		warn("[SpiritWard] Could not reach server remotes or ready failed.")
+	end
 	return
 end
 
