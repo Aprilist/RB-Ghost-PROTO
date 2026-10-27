@@ -2,9 +2,19 @@
 -- Luau types for the P1 subset of docs/CONTRACTS.md v0.2, plus the M2-A
 -- profile fields and the M2-D quest pieces (claim_quest, profile.quests,
 -- StateEvent kinds dialogue and notice; proposed in
--- handoff/M2D_CONTRACT_PROPOSALS.md). apply_seal and profile lease are out of scope.
+-- handoff/M2D_CONTRACT_PROPOSALS.md) and the M2-E seal pieces (apply_seal,
+-- ALREADY_SEALED, profile equippedWeaponId/equippedSealId, session shield,
+-- StateEvent kind seal_menu; proposed in handoff/M2E_CONTRACT_PROPOSALS.md).
+-- Profile lease is out of scope.
 
-export type ActionName = "ready" | "basic_attack" | "cast_skill" | "dash" | "transform" | "claim_quest"
+export type ActionName =
+	"ready"
+	| "basic_attack"
+	| "cast_skill"
+	| "dash"
+	| "transform"
+	| "claim_quest"
+	| "apply_seal"
 
 export type ResultCode =
 	"OK"
@@ -18,6 +28,7 @@ export type ResultCode =
 	| "INSUFFICIENT_ESSENCE"
 	| "QUEST_NOT_READY"
 	| "ALREADY_CLAIMED"
+	| "ALREADY_SEALED"
 	| "CAP_REACHED"
 	| "INTERNAL_ERROR"
 
@@ -27,6 +38,7 @@ export type CastSkillPayload = { skillId: string, aimDirection: Vector3 }
 export type DashPayload = { moveDirection: Vector3 }
 export type TransformPayload = {}
 export type ClaimQuestPayload = { questId: string }
+export type ApplySealPayload = { itemInstanceId: string, sealId: string }
 
 -- client → server (ActionRequest)
 export type ActionRequest = {
@@ -56,6 +68,9 @@ export type PublicOwnProfile = {
 	coins: number,
 	essence: number,
 	quests: { [string]: PublicQuestRecord },
+	-- M2-E: the instance id apply_seal names, and the seal on it (nil = none).
+	equippedWeaponId: string,
+	equippedSealId: string?,
 }
 
 -- Times are server clock (workspace:GetServerTimeNow()).
@@ -67,6 +82,9 @@ export type PublicOwnSession = {
 	transformEndsAt: number?,
 	cooldowns: { [string]: number }, -- action/skill id → endsAt
 	profileReady: boolean,
+	-- M2-E ward shield: HP left (0 = none) and when it runs out (server clock).
+	shieldHp: number,
+	shieldEndsAt: number?,
 }
 
 -- revision is a per-server-session counter in P1 (see PROTOTYPE_BRIEF.md);
@@ -105,7 +123,16 @@ export type NoticeEvent = {
 	textTH: string,
 }
 
-export type StateEvent = SnapshotEvent | CombatFxEvent | DialogueEvent | NoticeEvent
+-- Opens the seal menu for the player who used the seal station NPC (M2-E).
+-- The menu text comes from Definitions/Seals; money and ownership from the
+-- latest snapshot. The server re-checks everything on apply_seal.
+export type SealMenuEvent = {
+	kind: "seal_menu",
+	npcId: string,
+	speakerTH: string,
+}
+
+export type StateEvent = SnapshotEvent | CombatFxEvent | DialogueEvent | NoticeEvent | SealMenuEvent
 
 return {
 	RemoteFolderName = "SpiritWardRemotes",
@@ -125,5 +152,6 @@ return {
 		dash = { perSec = 3, burst = 3 },
 		transform = { perSec = 1, burst = 2 },
 		claim_quest = { perSec = 2, burst = 2 },
+		apply_seal = { perSec = 2, burst = 2 },
 	},
 }

@@ -24,6 +24,7 @@ local SCHEMAS: { [string]: { [string]: FieldKind } } = {
 	dash = { moveDirection = "direction" },
 	transform = {},
 	claim_quest = { questId = "string" },
+	apply_seal = { itemInstanceId = "string", sealId = "string" },
 }
 
 type Bucket = { tokens: number, at: number }

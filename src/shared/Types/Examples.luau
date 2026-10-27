@@ -35,6 +35,8 @@ local snapshot: Contracts.SnapshotEvent = {
 			q01_meet_keeper = { status = "claimed", progress = 1 },
 			q02_first_hunt = { status = "active", progress = 3 },
 		},
+		equippedWeaponId = "w1",
+		equippedSealId = "ember",
 	},
 	session = {
 		hp = 90,
@@ -44,6 +46,8 @@ local snapshot: Contracts.SnapshotEvent = {
 		transformEndsAt = nil,
 		cooldowns = { dash = 1234.5, blade_sweep = 1238.0 },
 		profileReady = true,
+		shieldHp = 0,
+		shieldEndsAt = nil,
 	},
 }
 
@@ -71,7 +75,14 @@ local keeperDialogue: Contracts.DialogueEvent = {
 	claimQuestId = "q02_first_hunt",
 }
 
+local applySeal: Contracts.ActionRequest = {
+	requestId = "c1-000045",
+	action = "apply_seal",
+	payload = { itemInstanceId = "w1", sealId = "ember" },
+}
+
 return {
+	applySeal = applySeal,
 	basicAttack = basicAttack,
 	claimQuest = claimQuest,
 	keeperDialogue = keeperDialogue,

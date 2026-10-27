@@ -253,8 +253,8 @@ end
 
 function CombatController.Start()
 	network.OnResult(function(result, action)
-		-- claim_quest errors are shown by QuestController.
-		if result.ok or action == "ready" or action == "claim_quest" then
+		-- claim_quest errors are shown by QuestController, apply_seal by SealController.
+		if result.ok or action == "ready" or action == "claim_quest" or action == "apply_seal" then
 			return
 		end
 		if action == "dash" or action == "cast_skill" then

@@ -50,19 +50,28 @@ local enemies: Enemies
 local movement: Movement
 local lastSwing: { [Player]: number } = {}
 
--- Applies `damage` to every live enemy in the sector; returns hit count.
-local function strike(player: Player, origin: Vector3, aim: Vector3, reach: number, arcDeg: number, damage: number): number
-	local hits = 0
+local basicHitListeners: { (Player, { string }) -> () } = {}
+
+-- Hears each basic attack that landed: (player, runtime ids of enemies hit).
+-- Skills do not fire it. M2-E ember counts hits through this.
+function CombatService.OnBasicHit(callback: (Player, { string }) -> ())
+	table.insert(basicHitListeners, callback)
+end
+
+-- Applies `damage` to every live enemy in the sector; returns the runtime ids
+-- that took damage.
+local function strike(player: Player, origin: Vector3, aim: Vector3, reach: number, arcDeg: number, damage: number): { string }
+	local hit: { string } = {}
 	for _, enemy in enemies.GetAlive() do
 		local target = enemy.body.Position
 		if Geometry.InSector(origin, aim, target, reach, arcDeg, enemy.bodyRadius) then
 			if enemies.Damage(enemy.id, damage, player) then
-				hits += 1
+				table.insert(hit, enemy.id)
 				network.EmitFx("slash_hit", target, player.UserId, enemy.id)
 			end
 		end
 	end
-	return hits
+	return hit
 end
 
 local function basicAttack(player: Player, payload: { [string]: any }): ResultCode
@@ -82,14 +91,20 @@ local function basicAttack(player: Player, payload: { [string]: any }): ResultCo
 
 	local root = playerState.GetRoot(player) :: BasePart
 	local aim = network.ValidateDirection(payload.aimDirection) :: Vector3
+	local hit: { string }
 	if playerState.IsTransformed(player) then
 		-- Guardian form: short wave, longer reach, same hit pipeline.
 		local S = Prototype.Spirit
 		network.EmitFx("wave", root.Position + aim * (S.TransformAttackReachStuds / 2), player.UserId, nil)
-		strike(player, root.Position, aim, S.TransformAttackReachStuds, S.TransformAttackArcDeg, S.TransformAttackDamage)
+		hit = strike(player, root.Position, aim, S.TransformAttackReachStuds, S.TransformAttackArcDeg, S.TransformAttackDamage)
 	else
 		network.EmitFx("slash", root.Position + aim * 3, player.UserId, nil)
-		strike(player, root.Position, aim, C.BasicReachStuds, C.BasicArcDeg, C.BasicDamage)
+		hit = strike(player, root.Position, aim, C.BasicReachStuds, C.BasicArcDeg, C.BasicDamage)
+	end
+	if #hit > 0 then
+		for _, callback in basicHitListeners do
+			task.spawn(callback, player, hit)
+		end
 	end
 	return "OK"
 end

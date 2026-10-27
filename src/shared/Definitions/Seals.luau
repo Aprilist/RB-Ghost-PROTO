@@ -1,7 +1,9 @@
 --!strict
--- Seal catalog (draft for M2-E; nothing reads it at runtime yet).
--- Costs from GAME_DESIGN v0.2 ("ผนึกแรก 30 essence"); effect params are
--- proposals to tune in playtest. apply_seal waits on DEC-008.
+-- Seal catalog (M2-E). Read by SealService (server) and SealController
+-- (client menu text). Costs from GAME_DESIGN v0.2 ("ผนึกแรก 30 essence");
+-- effect params are proposals to tune in playtest (draft = true).
+-- Effect keys: ember = hitsToBurn, burnDps, burnSec;
+--              ward  = soulsToShield, shieldHp, shieldSec, cooldownSec.
 
 export type SealDef = {
 	id: string,

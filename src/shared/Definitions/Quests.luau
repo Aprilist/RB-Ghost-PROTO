@@ -4,8 +4,8 @@
 -- `giverNpcId` (who starts it and pays it out, Definitions/Npcs) and
 -- `objectiveTH` (one-line tracker text). Story beats follow GAME_DESIGN v0.2;
 -- dialogue is placeholder for Director review. `draft = true`: the objective
--- needs a later batch (apply_seal = M2-E, defeat_boss = M2-F), so the quest can
--- be taken but not finished yet.
+-- needs a later batch (defeat_boss = M2-F), so the quest can be taken but not
+-- finished yet. apply_seal (q04) is live since M2-E: the seal station is the smith.
 
 export type ObjectiveType = "talk" | "defeat" | "collect" | "apply_seal" | "defeat_boss"
 
@@ -89,12 +89,12 @@ local Quests: { [string]: QuestDef } = {
 		rewardXp = 20,
 		rewardCoins = 10,
 		rewardEssence = 0,
-		dialogueStart = "ใช้แก่นวิญญาณผนึกดาบที่ศาลก่อนไปเผชิญหน้ามัน",
+		dialogueStart = "ไปหาช่างตีดาบที่แผงในหมู่บ้าน แล้วใช้แก่นวิญญาณผนึกดาบก่อนไปเผชิญหน้ามัน",
 		dialogueComplete = "ผนึกติดแน่นแล้ว ไปที่ศาลเจ้าร้างเถอะ",
 		repeatable = false,
 		giverNpcId = "npc_shrine_keeper",
-		objectiveTH = "ผนึกดาบที่ศาลผู้ดูแล (ระบบผนึกยังไม่เปิด)",
-		draft = true,
+		objectiveTH = "ผนึกดาบที่ช่างตีดาบ (แผงร้านตีบวกในหมู่บ้าน)",
+		draft = false,
 	},
 	q05_defeat_keeper = {
 		id = "q05_defeat_keeper",

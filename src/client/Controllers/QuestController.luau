@@ -366,12 +366,12 @@ function QuestController.Start(deps: Network)
 		DisplayOrder = 6,
 	})
 
-	-- Tracker: under the HUD panel (HUD sits at 12,44 and is 156 tall).
+	-- Tracker: under the HUD panel (HUD sits at 12,44 and is 174 tall).
 	trackerFrame = make("Frame", gui, {
 		Name = "Tracker",
 		Size = UDim2.fromOffset(260, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
-		Position = UDim2.fromOffset(12, 208),
+		Position = UDim2.fromOffset(12, 228),
 		BackgroundColor3 = PANEL,
 		BackgroundTransparency = 0.35,
 		BorderSizePixel = 0,

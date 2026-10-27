@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
+local SealRules = require(script.Parent.Parent.Util.SealRules)
 
 export type State = {
 	hp: number,
@@ -19,6 +20,8 @@ export type State = {
 	cooldowns: { [string]: number },
 	profileReady: boolean,
 	revision: number,
+	shieldHp: number, -- M2-E ward shield; session only
+	shieldEndsAt: number?,
 }
 
 type Network = {
@@ -108,6 +111,8 @@ function PlayerStateService.Commit(player: Player)
 			coins = profile.coins,
 			essence = profile.essence,
 			quests = quests,
+			equippedWeaponId = profile.equippedWeaponId,
+			equippedSealId = SealRules.EquippedSealId(profile),
 		},
 		session = {
 			hp = state.hp,
@@ -117,13 +122,32 @@ function PlayerStateService.Commit(player: Player)
 			transformEndsAt = state.transformEndsAt,
 			cooldowns = cooldowns,
 			profileReady = state.profileReady,
+			shieldHp = SealRules.ShieldNow(state.shieldHp, state.shieldEndsAt, now()),
+			shieldEndsAt = state.shieldEndsAt,
 		},
 	})
+end
+
+-- Ward seal: sets the shield pool (replaces any current one) for `seconds`.
+function PlayerStateService.GrantShield(player: Player, hp: number, seconds: number)
+	local state = states[player]
+	if not state or not state.alive or hp <= 0 or seconds <= 0 then
+		return
+	end
+	state.shieldHp = hp
+	state.shieldEndsAt = now() + seconds
+	PlayerStateService.Commit(player)
 end
 
 function PlayerStateService.Damage(player: Player, amount: number)
 	local state = states[player]
 	if not state or not state.alive or amount <= 0 then
+		return
+	end
+	-- The shield eats damage first; only what gets through reduces HP.
+	state.shieldHp, state.shieldEndsAt, amount = SealRules.Absorb(state.shieldHp, state.shieldEndsAt, now(), amount)
+	if amount <= 0 then
+		PlayerStateService.Commit(player)
 		return
 	end
 	state.hp = math.max(0, state.hp - amount)
@@ -149,6 +173,8 @@ local function onDied(player: Player)
 	-- Death clears gauge and transform; cooldowns are kept (contract).
 	state.spiritGauge = 0
 	state.transformEndsAt = nil
+	state.shieldHp = 0
+	state.shieldEndsAt = nil
 	PlayerStateService.Commit(player)
 	for _, callback in diedListeners do
 		task.spawn(callback, player)
@@ -175,6 +201,8 @@ local function onCharacter(player: Player, character: Model)
 	humanoid.Health = state.maxHp
 	state.hp = state.maxHp
 	state.alive = true
+	state.shieldHp = 0
+	state.shieldEndsAt = nil
 	humanoid.Died:Connect(function()
 		onDied(player)
 	end)
@@ -216,6 +244,8 @@ local function onPlayer(player: Player)
 		cooldowns = {},
 		profileReady = true, -- memory profile is ready immediately (ProfileService.Mode)
 		revision = 0,
+		shieldHp = 0,
+		shieldEndsAt = nil,
 	}
 	player.CharacterAdded:Connect(function(character)
 		onCharacter(player, character)

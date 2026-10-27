@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
+local Seals = require(ReplicatedStorage.Shared.Definitions.Seals)
 local World = require(ReplicatedStorage.Shared.Definitions.World)
 local WorldClock = require(ReplicatedStorage.Shared.Util.WorldClock)
 
@@ -40,6 +41,7 @@ local gaugeBar: Bar
 local essenceLabel: TextLabel
 local coinLabel: TextLabel
 local clockLabel: TextLabel
+local sealLabel: TextLabel
 local skillChip: TextLabel
 local dashChip: TextLabel
 local statusLabel: TextLabel
@@ -111,7 +113,10 @@ local function render()
 	end
 
 	hpBar.fill.Size = UDim2.fromScale(math.clamp(s.hp / s.maxHp, 0, 1), 1)
-	hpBar.label.Text = string.format("HP %d / %d", s.hp, s.maxHp)
+	local shield = if s.shieldEndsAt and now < s.shieldEndsAt then s.shieldHp else 0
+	hpBar.label.Text = if shield > 0
+		then string.format("HP %d / %d  +โล่ %d", s.hp, s.maxHp, shield)
+		else string.format("HP %d / %d", s.hp, s.maxHp)
 
 	local transformLeft = remaining(s.transformEndsAt, now)
 	if transformLeft > 0 then
@@ -131,6 +136,16 @@ local function render()
 	-- Same real-time clock as the server lighting (Util/WorldClock).
 	local moment = WorldClock.At(now)
 	clockLabel.Text = string.format("%s · วันที่ %d · %s", World.Clock.SeasonNamesTH[moment.season] or moment.season, moment.day, WorldClock.Format(moment.hour))
+
+	local sealDef = if p.equippedSealId then Seals[p.equippedSealId] else nil
+	if not sealDef then
+		sealLabel.Text = "ผนึก: ยังไม่มี"
+	else
+		local wardLeft = if p.equippedSealId == "ward" then remaining(s.cooldowns.ward, now) else 0
+		sealLabel.Text = if wardLeft > 0
+			then string.format("ผนึก: %s · คูลดาวน์ %.0f วิ", sealDef.displayNameTH, wardLeft)
+			else "ผนึก: " .. sealDef.displayNameTH
+	end
 
 	local skillLeft = remaining(s.cooldowns[Prototype.Skill.Id], now)
 	skillChip.Text = if skillLeft > 0 then string.format("วิชา E  %.1f", skillLeft) else "วิชา E  พร้อม"
@@ -160,7 +175,7 @@ function HUDController.Start(deps: Network)
 
 	local panel = Instance.new("Frame")
 	panel.Name = "Panel"
-	panel.Size = UDim2.fromOffset(260, 156)
+	panel.Size = UDim2.fromOffset(260, 174)
 	panel.Position = UDim2.fromOffset(12, 44)
 	panel.BackgroundColor3 = PANEL
 	panel.BackgroundTransparency = 0.35
@@ -184,6 +199,8 @@ function HUDController.Start(deps: Network)
 	dashChip = chip(panel, 134, 106)
 	clockLabel = label(panel, "", UDim2.fromOffset(240, 18), UDim2.fromOffset(10, 132), 12)
 	clockLabel.TextColor3 = Color3.fromRGB(210, 214, 240)
+	sealLabel = label(panel, "", UDim2.fromOffset(240, 18), UDim2.fromOffset(10, 150), 12)
+	sealLabel.TextColor3 = AMBER
 
 	statusLabel = label(gui, "", UDim2.fromOffset(320, 30), UDim2.new(0.5, -160, 0.72, 0), 20)
 	statusLabel.TextXAlignment = Enum.TextXAlignment.Center

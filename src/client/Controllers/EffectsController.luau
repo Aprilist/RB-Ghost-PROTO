@@ -235,6 +235,17 @@ local function onFx(event: Contracts.CombatFxEvent)
 		sound(SOUNDS.telegraph, event.position, 1.4)
 	elseif id == "transform_end" then
 		fadePart(Vector3.new(5, 5, 5), CFrame.new(event.position), GUARDIAN, 0.35, Enum.PartType.Ball, Vector3.new(1, 1, 1), 0.6)
+	elseif id == "burn" then
+		-- Small flicker on a burning enemy (M2-E ember); ember colour, not danger orange.
+		fadePart(Vector3.new(1, 1, 1), CFrame.new(event.position + Vector3.new(0, 1.5, 0)), EMBER, 0.3, Enum.PartType.Ball, Vector3.new(2.4, 2.4, 2.4), 0.35)
+	elseif id == "ward_shield" then
+		local feet = CFrame.new(event.position - Vector3.new(0, 2.8, 0)) * CFrame.Angles(0, 0, math.rad(90))
+		fadePart(Vector3.new(0.15, 2, 2), feet, SOUL, 0.5, Enum.PartType.Cylinder, Vector3.new(0.15, 9, 9), 0.4)
+		fadePart(Vector3.new(4, 6, 4), CFrame.new(event.position), SOUL_CORE, 0.45, Enum.PartType.Ball, Vector3.new(6, 8, 6), 0.7)
+		sound(SOUNDS.telegraph, event.position, 1.6)
+	elseif id == "seal_apply" then
+		fadePart(Vector3.new(1.2, 1, 1.2), CFrame.new(event.position), LEVEL_UP, 0.5, nil, Vector3.new(0.3, 9, 0.3), 0.3)
+		sound(SOUNDS.hit, event.position, 0.8)
 	elseif id == "enemy_death" then
 		fadePart(Vector3.new(2, 2, 2), CFrame.new(event.position), EMBER, 0.4, Enum.PartType.Ball, Vector3.new(7, 7, 7))
 	end

@@ -9,6 +9,7 @@ local Definitions = ReplicatedStorage.Shared.Definitions
 local Items = require(Definitions.Items)
 local Progression = require(Definitions.Progression)
 local Project = require(Definitions.Project)
+local Seals = require(Definitions.Seals)
 
 export type ItemInstance = {
 	definitionId: string,
@@ -152,6 +153,9 @@ function ProfileRules.Validate(profile: ProfileV1): (boolean, string?)
 		end
 		if not finiteInRange(item.upgradeLevel, 0, 10) then
 			return false, "inventory." .. instanceId .. ".upgradeLevel"
+		end
+		if item.sealId ~= nil and Seals[item.sealId] == nil then
+			return false, "inventory." .. instanceId .. ".sealId"
 		end
 	end
 	local equipped = profile.inventory[profile.equippedWeaponId]

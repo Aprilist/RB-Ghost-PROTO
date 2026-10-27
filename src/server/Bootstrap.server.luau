@@ -20,6 +20,7 @@ local PlotService = require(Services.PlotService)
 local WorldClockService = require(Services.WorldClockService)
 local QuestService = require(Services.QuestService)
 local NpcService = require(Services.NpcService)
+local SealService = require(Services.SealService)
 
 SceneService.Init()
 NetworkService.Init()
@@ -51,7 +52,16 @@ QuestService.Init({
 	PlayerState = PlayerStateService,
 	Rewards = RewardService,
 })
-NpcService.Init({ Quests = QuestService, PlayerState = PlayerStateService })
+SealService.Init({
+	Network = NetworkService,
+	Profiles = ProfileService,
+	PlayerState = PlayerStateService,
+	Enemies = EnemyService,
+	Combat = CombatService,
+	Rewards = RewardService,
+	Quests = QuestService,
+})
+NpcService.Init({ Quests = QuestService, PlayerState = PlayerStateService, Seals = SealService })
 
 SceneService.Start() -- courtyard + Mistwood + village
 ZoneService.Start() -- needs the arena root
@@ -66,17 +76,19 @@ SpiritService.Start()
 RewardService.Start()
 PlotService.Start()
 QuestService.Start() -- after PlayerStateService so profiles exist on join
+SealService.Start() -- after Combat/Reward/Quest so their hooks exist
 NpcService.Start() -- needs the scene root
 -- Remotes start listening last, once every handler is registered.
 NetworkService.Start()
 
-print("[SpiritWard] M2-D server started: courtyard, Mistwood, village, zones, world clock, profile (memory), network, player state, movement, enemies (wisp, hitodama, kodama, karakasa), combat, spirit, rewards, plots, quests, NPCs.")
+print("[SpiritWard] M2-E server started: courtyard, Mistwood, village, zones, world clock, profile (memory), network, player state, movement, enemies (wisp, hitodama, kodama, karakasa), combat, spirit, rewards, plots, quests, NPCs, seals.")
 
 -- Studio only: run the pure rule tests and the arena layout check so a Play
 -- session prints "[MovementRulesTest] ...", "[SceneLayoutTest] ...",
 -- "[CatalogTest] ...", "[ProfileRulesTest] ...", "[RewardRulesTest] ...",
 -- "[WorldClockTest] ...", "[PlotRulesTest] ...", "[WorldLayoutTest] ...",
--- "[EnemyAttackRulesTest] ...", "[QuestRulesTest] ..." and "[QuestWorldTest] ..."
+-- "[EnemyAttackRulesTest] ...", "[QuestRulesTest] ...", "[QuestWorldTest] ..."
+-- and "[SealRulesTest] ..."
 -- without any manual step.
 if game:GetService("RunService"):IsStudio() then
 	task.defer(function()
@@ -91,5 +103,6 @@ if game:GetService("RunService"):IsStudio() then
 		require(script.Parent.Tests.EnemyAttackRulesTest).Run()
 		require(script.Parent.Tests.QuestRulesTest).Run()
 		require(script.Parent.Tests.QuestWorldTest).Run()
+		require(script.Parent.Tests.SealRulesTest).Run()
 	end)
 end

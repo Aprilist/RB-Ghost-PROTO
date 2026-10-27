@@ -14,6 +14,7 @@ local Npcs = require(ReplicatedStorage.Shared.Definitions.Npcs)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local World = require(ReplicatedStorage.Shared.Definitions.World)
 local Kit = require(script.Parent.Parent.Scene.Kit)
+local SealRules = require(script.Parent.Parent.Util.SealRules)
 
 type Quests = {
 	Talk: (Player, string, number?) -> (),
@@ -24,6 +25,10 @@ type Quests = {
 type PlayerState = {
 	IsAlive: (Player) -> boolean,
 	GetRoot: (Player) -> BasePart?,
+}
+
+type Seals = {
+	OpenMenu: (Player) -> (),
 }
 
 local NpcService = {}
@@ -39,6 +44,7 @@ local TRACE_BLUE = Color3.fromRGB(140, 210, 255)
 
 local quests: Quests
 local playerState: PlayerState
+local seals: Seals
 local lastUse: { [Player]: number } = {}
 
 local function prompt(holder: BasePart, action: string, object: string, range: number): ProximityPrompt
@@ -87,10 +93,15 @@ local function buildNpc(parent: Instance, npc: Npcs.NpcDef): Model
 	m:SetAttribute("NpcId", npc.id)
 	CollectionService:AddTag(m, NpcService.NpcTag)
 
-	local p = prompt(head, "คุย", npc.displayNameTH, npc.talkRangeStuds)
+	local p = prompt(head, if npc.id == SealRules.StationNpcId then "ผนึกดาบ" else "คุย", npc.displayNameTH, npc.talkRangeStuds)
 	p.Triggered:Connect(function(player)
 		if allow(player) and quests.InRange(player, npc, 2) then
-			quests.Talk(player, npc.id)
+			if npc.id == SealRules.StationNpcId then
+				-- The smith's stall is the seal station (M2-E): menu instead of chat.
+				seals.OpenMenu(player)
+			else
+				quests.Talk(player, npc.id)
+			end
 		end
 	end)
 	return m
@@ -143,9 +154,10 @@ function NpcService.Build(): Folder?
 	return folder
 end
 
-function NpcService.Init(deps: { Quests: Quests, PlayerState: PlayerState })
+function NpcService.Init(deps: { Quests: Quests, PlayerState: PlayerState, Seals: Seals })
 	quests = deps.Quests
 	playerState = deps.PlayerState
+	seals = deps.Seals
 end
 
 function NpcService.Start()

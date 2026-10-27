@@ -19,6 +19,7 @@ local snapshotListeners: { (Contracts.SnapshotEvent) -> () } = {}
 local fxListeners: { (Contracts.CombatFxEvent) -> () } = {}
 local dialogueListeners: { (Contracts.DialogueEvent) -> () } = {}
 local noticeListeners: { (Contracts.NoticeEvent) -> () } = {}
+local sealMenuListeners: { (Contracts.SealMenuEvent) -> () } = {}
 local pendingActions: { [string]: string } = {}
 local readyOk = false
 
@@ -57,6 +58,10 @@ function NetworkClient.OnNotice(callback: (Contracts.NoticeEvent) -> ())
 	table.insert(noticeListeners, callback)
 end
 
+function NetworkClient.OnSealMenu(callback: (Contracts.SealMenuEvent) -> ())
+	table.insert(sealMenuListeners, callback)
+end
+
 function NetworkClient.GetSnapshot(): Contracts.SnapshotEvent?
 	return latestSnapshot
 end
@@ -92,6 +97,10 @@ local function onState(event: Contracts.StateEvent)
 		end
 	elseif event.kind == "notice" then
 		for _, callback in noticeListeners do
+			task.spawn(callback, event)
+		end
+	elseif event.kind == "seal_menu" then
+		for _, callback in sealMenuListeners do
 			task.spawn(callback, event)
 		end
 	end

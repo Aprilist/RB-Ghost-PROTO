@@ -17,6 +17,7 @@ local Quests = require(Definitions.Quests)
 local World = require(Definitions.World)
 local Zones = require(Definitions.Zones)
 local Village = require(script.Parent.Parent.Scene.Village)
+local SealRules = require(script.Parent.Parent.Util.SealRules)
 
 local V, M = World.Village, World.Mistwood
 -- Mistwood keeps trees 11 studs from every enemy spawn (Scene/Mistwood).
@@ -60,8 +61,10 @@ local cases: { Case } = {
 					end
 				elseif t == "collect" and (q.targetId ~= "veil_trace" or #M.veilTraces < q.targetCount) then
 					return false, id .. " collect target/count"
-				elseif (t == "apply_seal" or t == "defeat_boss") and not q.draft then
+				elseif t == "defeat_boss" and not q.draft then
 					return false, id .. " needs a later batch, must stay draft"
+				elseif t == "apply_seal" and Npcs[SealRules.StationNpcId] == nil then
+					return false, id .. " seal station NPC"
 				end
 			end
 			return true, nil
