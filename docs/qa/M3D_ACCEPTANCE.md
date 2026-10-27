@@ -11,7 +11,7 @@ Claude 27 ต.ค. 2026 | ใช้คู่กับ `docs/ACCEPTANCE.md` ห�
 | 3 | จำลอง load fail แล้วไม่เขียน default ทับ record | (ก) `PersistenceTest` ข้อ 6–8 (MemoryStore `failNext`) · (ข) lease ของ server อื่นยังไม่หมด → Play → หยุด | ไม่เขียนอะไร, client มีทางออก | (ก) 3/3 ผ่าน · (ข) `load failed ... held`, record rev/token เดิมทั้งตอนโหลดและตอนหยุด, client ขึ้น "โหลดข้อมูลตัวละครไม่ได้ ออกแล้วเข้าใหม่อีกครั้ง" | **ผ่าน** (DataStore ล่มกลาง request จริงจำลองใน Studio ไม่ได้ ส่วนนั้นพิสูจน์ด้วย fake เท่านั้น) |
 | 4 | สอง session ใช้ profile พร้อมกันไม่ได้; stale owner ไม่ทับ | Director อยู่ในเกมจากแอป (jobId `e177547e…`) → Studio Play → หยุด → Director แตะ `mistwood_gate` แล้วออก → Studio Play · stale owner: `PersistenceTest` ข้อ 3 · lease หมดอายุ: `session` ของ `dead-server` หมดแล้ว → Play | Studio ได้ held ไม่แตะ record; ออกแล้ว release; lease หมดอายุยึดได้ | Studio `held` ×2, record rev 4 token เดิม · server จริงออก → rev 5 `session=null` `mistwood_gate` · Studio โหลดได้ทันที · lease หมดอายุ → `session.jobId=studio` · stale save → `lease_lost` | **ผ่าน** |
 | 5 | duplicate save/retry, queue ordering, migration, shutdown | `PersistenceTest` ข้อ 9–10, 12–14 · หยุด Play (`BindToClose`) | รวม save, retry ตาม delay, migration ทีละขั้น, ปิดแล้ว save + release | test ผ่านทุกข้อ (142/142 ทั้งชุด) · หยุด Play แล้ว `savedAt` ใหม่ + `session` หาย ทุกรอบ | **ผ่าน** (shutdown ทดสอบกับผู้เล่น 1 คน) |
-| 6 | งบ network, memory, frame time ใน scene ผู้เล่นเต็ม | ค่าฐาน Play solo 20 วิ เดินเข้าป่า (ศัตรู 12 ตัว) | — | server heartbeat เฉลี่ย 16.67 ms แย่สุด 19.1 ms · client frame เฉลี่ย 16.66 ms แย่สุด 27.5 ms · server ส่ง 41 KB/s · memory/receive ของ Play solo ใช้ไม่ได้ (server กับ client อยู่ process เดียว) | **partial** 5 คนผ่าน (ดู "ผล Local Server 5 คน") · 8/12 คนยังไม่ได้วัด · ข้อความ ACCEPTANCE ยังเขียน 8 คน DEC-007 เป็น 12 รอ Codex |
+| 6 | งบ network, memory, frame time ใน scene ผู้เล่นเต็ม | ค่าฐาน Play solo 20 วิ เดินเข้าป่า (ศัตรู 12 ตัว) | — | server heartbeat เฉลี่ย 16.67 ms แย่สุด 19.1 ms · client frame เฉลี่ย 16.66 ms แย่สุด 27.5 ms · server ส่ง 41 KB/s · memory/receive ของ Play solo ใช้ไม่ได้ (server กับ client อยู่ process เดียว) | **partial** 5 คนผ่านทั้งเดินและสู้ (ดู "ผล Local Server 5 คน") · 8/12 คนยังไม่ได้วัด · ข้อความ ACCEPTANCE ยังเขียน 8 คน DEC-007 เป็น 12 รอ Codex |
 | 7 | touch จริง ระบุรุ่นเครื่อง | — | — | M2-G วัดใน Device Simulator เท่านั้น | **blocked** ต้องมือถือจริงของ Director |
 
 ## ผล Local Server 5 คน (28 ต.ค. 2026, build `89f4ca6`)
@@ -29,7 +29,20 @@ Studio → Test → Local Server + 5 players บนเครื่องเด�
 - **network:** ค่าส่งรวมแทบไม่เพิ่มตามจำนวนคน (คนเดียว 41 KB/s, 5 คน 45 KB/s) ค่า 41 KB/s ตอนเล่นคนเดียวจึงเป็นค่าคงที่ของ world ไม่ได้คิดต่อคน
 - **memory server โต 290 → 443 MB** ตอนผู้เล่นกระจายเข้าป่า ยังไม่รู้ว่าหยุดโตที่เท่าไร ต้องดูนานกว่านี้
 - **ฝั่ง client ใช้ตัวเลขไม่ได้:** 6 หน้าต่างอยู่บนเครื่องเดียว หน้าต่างที่ไม่ได้ focus ถูกจำกัดราว 15 fps (frame ≈ 66 ms) และ `DataReceiveKbps` ใน client ของ Studio อ่านได้ 0
-- **ยังไม่ได้วัด:** ระหว่างสู้ (ไม่มีใครโจมตี) และ 8/12 คน
+### ระหว่างสู้ และ memory ระยะยาว (ชุดเดิม 5 คน)
+
+Bot ทดสอบรันในทั้ง 5 client 90 วิ: วิ่งหาศัตรูที่ใกล้สุดในป่า ส่ง `basic_attack` ผ่าน remote จริงทุก 0.4 วิเมื่ออยู่ในระยะ และ `cast_skill` ทุก 3 วิ (bot อยู่ใน scratchpad ไม่ได้เข้า repo)
+
+| ที่วัด | ผล |
+|---|---|
+| server heartbeat 60 วิระหว่างสู้ | เฉลี่ย 16.67 ms แย่สุด 21.9 ms, **เฟรมเกิน 25 ms: 0/3639** |
+| server ส่งรวม | เฉลี่ย 30.4 KB/s peak 40.0 KB/s |
+| การสู้เกิดจริง | ศัตรู 12 → 7 ตัว, ผู้เล่น 4/5 คนเสีย HP (100–112/120) · Player1 ส่ง 49 action: OK 33, COOLDOWN 16 (bot ตีเร็วกว่า cooldown จึงถูกปฏิเสธตามกฎ) ได้ EXP/เหรียญ/แก่นวิญญาณ, เกจเต็ม 100 |
+| memory server (MB) | ก่อนสู้ 466 → ระหว่างสู้ทุก 10 วิ 312, 316, 318, 319, 321, 326 → หลังสู้ทุก 15 วิ 328, 351, 354, 363, 366, 367, 368, 370 · ศัตรูเกิดครบ 12 |
+| instance บน server | 62,437 คงที่ตลอด |
+
+- **memory ไม่ใช่ leak ของ instance:** จำนวน instance ไม่เพิ่มเลย และ memory ลดจาก 466 เหลือ 312 MB เองโดยไม่ได้ทำอะไร เป็นรูปฟันเลื่อยของ garbage collection อยู่ในช่วง 290–466 MB · ยังไม่ได้ดูนานกว่า ~10 นาที ถ้าจะยืนยันต้องเปิด server ทิ้งไว้ ≥ 30 นาทีแล้วดูว่าจุดต่ำสุดหลังแต่ละรอบยังคงที่ไหม
+- **ยังไม่ได้วัด:** 8/12 คน, บอส (ลานศาลเจ้า) และฝั่ง client บนเครื่องจริง
 
 ## ที่ต้องทำต่อเพื่อปิดข้อ 6–7
 
