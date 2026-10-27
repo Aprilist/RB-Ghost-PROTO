@@ -9,7 +9,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Quests = require(ReplicatedStorage.Shared.Definitions.Quests)
+local QuestGuide = require(ReplicatedStorage.Shared.Util.QuestGuide)
 local QuestRules = require(ReplicatedStorage.Shared.Util.QuestRules)
+local World = require(ReplicatedStorage.Shared.Definitions.World)
 local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
 
 type QuestMap = QuestRules.QuestMap
@@ -155,6 +157,35 @@ local cases: { Case } = {
 			}
 			local _, ready = QuestRules.Record(quests, "apply_seal", "ward", 1)
 			return #ready == 1 and quests.q04_try_seal.status == "ready", nil
+		end,
+	},
+	{
+		name = "guide arrow: keeper first, then forest, traces, smith, boss yard",
+		run = function()
+			local quests = fresh()
+			local a = QuestGuide.Target(quests, 0, 600)
+			QuestRules.Record(quests, "talk", KEEPER, 1)
+			local b = QuestGuide.Target(quests, 0, 600) -- ready: back to the giver
+			QuestRules.Claim(quests, "q01_meet_keeper")
+			QuestRules.Start(quests, "q02_first_hunt")
+			local c = QuestGuide.Target(quests, 0, 330) -- nearest hitodama spawn
+			quests.q02_first_hunt.status = "claimed"
+			QuestRules.Start(quests, "q03_gather_traces")
+			local d = QuestGuide.Target(quests, -50, 170) -- nearest trace
+			quests.q03_gather_traces.status = "claimed"
+			QuestRules.Start(quests, "q04_try_seal")
+			local e = QuestGuide.Target(quests, 0, 600)
+			quests.q04_try_seal.status = "claimed"
+			QuestRules.Start(quests, "q05_defeat_keeper")
+			local f = QuestGuide.Target(quests, 0, 600)
+			quests.q05_defeat_keeper.status = "claimed"
+			local g = QuestGuide.Target(quests, 0, 600)
+			local k = World.Village.keeperShrine
+			local t1 = World.Mistwood.veilTraces[1]
+			return a ~= nil and math.abs(a.x - (k.x - 5)) < 0.01 and b ~= nil and b.label == a.label
+				and c ~= nil and c.label == "ป่าม่านหมอก" and d ~= nil and d.x == t1.x and d.z == t1.z
+				and e ~= nil and e.label == "ช่างตีดาบ" and f ~= nil and f.label == "ลานศาลเจ้า" and g == nil,
+				nil
 		end,
 	},
 	{

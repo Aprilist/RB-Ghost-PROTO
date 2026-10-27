@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local Contracts = require(ReplicatedStorage.Shared.Types.Contracts)
 local Npcs = require(ReplicatedStorage.Shared.Definitions.Npcs)
 local Quests = require(ReplicatedStorage.Shared.Definitions.Quests)
+local QuestGuide = require(ReplicatedStorage.Shared.Util.QuestGuide)
 local QuestRules = require(ReplicatedStorage.Shared.Util.QuestRules)
 
 type Network = {
@@ -34,6 +35,10 @@ local NPC_TAG = "SpiritWardNpc"
 local WALK_AWAY_SLACK = 8
 local NOTICE_SEC = 3.5
 local MAX_TRACKED = 2
+-- Guide arrow: floats on the ground this far ahead of you, hides when you are close.
+local ARROW_AHEAD_STUDS = 6
+local ARROW_HIDE_STUDS = 14
+local ARROW_COLOR = Color3.fromRGB(255, 196, 120)
 
 local CLAIM_ERRORS: { [string]: string } = {
 	QUEST_NOT_READY = "เควสนี้ยังไม่เสร็จ",
@@ -59,6 +64,10 @@ local openClaimId: string? = nil
 local pendingClaim: string? = nil
 local noticeCount = 0
 local markers: { [Model]: TextLabel } = {}
+local arrow: Model? = nil
+local arrowShaft: BasePart? = nil
+local arrowHead: BasePart? = nil
+local arrowLabel: TextLabel? = nil
 
 local function make(className: string, parent: Instance, props: { [string]: any }): any
 	local inst = Instance.new(className)
@@ -274,6 +283,80 @@ end
 
 ------------------------------------------------------------------------------
 
+------------------------------------------------------------------------------
+-- Guide arrow (client-only picture; QuestGuide decides where it points)
+------------------------------------------------------------------------------
+
+local function buildArrow()
+	local m = Instance.new("Model")
+	m.Name = "SpiritWardQuestArrow"
+	local function part(name: string, size: Vector3): BasePart
+		local p = make("Part", m, {
+			Name = name,
+			Size = size,
+			Anchored = true,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+			Material = Enum.Material.Neon,
+			Color = ARROW_COLOR,
+			Transparency = 0.2,
+		})
+		return p
+	end
+	arrowShaft = part("Shaft", Vector3.new(0.7, 0.2, 2.6))
+	arrowHead = part("Head", Vector3.new(2, 0.2, 2))
+	local gui = make("BillboardGui", arrowShaft :: BasePart, {
+		Size = UDim2.fromOffset(170, 26),
+		StudsOffsetWorldSpace = Vector3.new(0, 2.4, 0),
+		AlwaysOnTop = true,
+		LightInfluence = 0,
+	})
+	arrowLabel = text(gui, {
+		Size = UDim2.fromScale(1, 1),
+		TextSize = 15,
+		TextColor3 = ARROW_COLOR,
+		TextStrokeTransparency = 0.2,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		Text = "",
+	})
+	m.Parent = workspace
+	arrow = m
+end
+
+local function updateArrow()
+	local m, shaft, head, label = arrow, arrowShaft, arrowHead, arrowLabel
+	if not (m and shaft and head and label) then
+		return
+	end
+	local snapshot = network.GetSnapshot()
+	local character = (Players.LocalPlayer :: Player).Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local target = if snapshot and root and snapshot.session.alive
+		then QuestGuide.Target((snapshot.profile.quests or {}) :: any, root.Position.X, root.Position.Z)
+		else nil
+	if not (root and target) then
+		m.Parent = nil
+		return
+	end
+	local dx, dz = target.x - root.Position.X, target.z - root.Position.Z
+	local dist = math.sqrt(dx * dx + dz * dz)
+	if dist < ARROW_HIDE_STUDS then
+		m.Parent = nil
+		return
+	end
+	local dir = Vector3.new(dx / dist, 0, dz / dist)
+	-- Ground sits about 3 studs under the root part; bob a little so it reads as UI.
+	local base = Vector3.new(root.Position.X, root.Position.Y - 2.6 + 0.15 * math.sin(os.clock() * 4), root.Position.Z) + dir * ARROW_AHEAD_STUDS
+	local face = CFrame.lookAt(base, base + dir)
+	shaft.CFrame = face * CFrame.new(0, 0, 0.4)
+	head.CFrame = face * CFrame.new(0, 0, -1.5) * CFrame.Angles(0, math.rad(45), 0)
+	label.Text = string.format("%s · %d m", target.label, math.floor(dist + 0.5))
+	m.Parent = workspace
+end
+
 function QuestController.Start(deps: Network)
 	network = deps
 
@@ -394,6 +477,8 @@ function QuestController.Start(deps: Network)
 	end)
 	renderMarkers()
 	RunService.Heartbeat:Connect(watchDistance)
+	buildArrow()
+	RunService.RenderStepped:Connect(updateArrow)
 end
 
 return QuestController
