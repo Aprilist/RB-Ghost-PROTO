@@ -1,5 +1,5 @@
 --!strict
--- M2-B world checks: village plots along the side roads, regions' decor flags, clear paths, the
+-- M2-B world checks: village house islands and plots, regions' decor flags, clear paths, the
 -- courtyard camera band, spawns/checkpoints, zone coverage and a budget.
 -- Needs the world built (Play, or SceneService.Build() in Edit):
 --   require(game.ServerScriptService.Server.Tests.WorldLayoutTest).Run()
@@ -20,6 +20,7 @@ local V, M = World.Village, World.Mistwood
 local FLOOR_Y = Prototype.Arena.FloorTopY
 local MAX_REGION_PARTS = 7000
 local MAX_REGION_LIGHTS = 32
+local GATE_SLACK = 2 -- gate centres sit on the plot column centre line
 
 local function regions(): Instance?
 	local root = workspace:FindFirstChild(Prototype.WorldNamespace)
@@ -151,11 +152,8 @@ local cases: { Case } = {
 		end,
 	},
 	{
-		name = "plots line the side roads, gates on the road, clear of roads, each other and the NPCs",
+		name = "plots sit in 2x2 islands, clear of roads, each other and the NPCs",
 		run = function()
-			if V.plotFrontX < V.roadX + V.roadHalfWidth then
-				return false, "plots start on the side road"
-			end
 			local quads = {}
 			for i, p in V.plots do
 				quads[i] = plotCorners(p)
@@ -164,10 +162,16 @@ local cases: { Case } = {
 						return false, "plot " .. i .. " outside the village"
 					end
 				end
-				-- The gate opens onto a road: its centre is within a few studs of one.
+				-- The gate opens onto its island's lawn.
 				local gate = (Village.PlotFrame(p) * CFrame.new(0, 0, -V.plotSize.z / 2)).Position
-				if Village.DistanceToRoad(gate.X, gate.Z) > 8 then
-					return false, "plot " .. i .. " gate is not on a road"
+				local onLawn = false
+				for _, isl in V.islands do
+					if math.abs(gate.X - isl.x) <= V.plotAt.x + GATE_SLACK and math.abs(gate.Z - isl.z) <= 24 then
+						onLawn = true
+					end
+				end
+				if not onLawn then
+					return false, "plot " .. i .. " gate is not on an island lawn"
 				end
 			end
 			for i = 1, #quads do
@@ -195,11 +199,13 @@ local cases: { Case } = {
 			end
 			-- Things that must stay outside every plot, with their radius.
 			local keepOut: { { name: string, x: number, z: number, r: number } } = {
-				{ name = "keeper shrine", x = V.keeperShrine.x, z = V.keeperShrine.z, r = 10 },
+				{ name = "great tree shrine", x = V.keeperShrine.x, z = V.keeperShrine.z, r = 14 },
 				{ name = "spawn", x = V.spawn.x, z = V.spawn.z, r = 4 },
-				{ name = "grove cottage", x = Village.GroveCottageX(), z = V.grove.z, r = 14 },
-				{ name = "pond", x = V.pond.x, z = V.pond.z, r = V.pond.radius },
+				{ name = "farmhouse", x = V.farmhouse.x, z = V.farmhouse.z, r = 12 },
 			}
+			for k, pd in V.ponds do
+				table.insert(keepOut, { name = "pond " .. k, x = pd.x, z = pd.z, r = pd.radius })
+			end
 			for k, h in V.npcHouses do
 				table.insert(keepOut, { name = "NPC house " .. k, x = h.x, z = h.z, r = 10 })
 			end
@@ -216,13 +222,32 @@ local cases: { Case } = {
 	{
 		name = "every plot gate is a short walk from the spawn",
 		run = function()
-			-- Straight-line bound; the avenue and lanes keep the real walk close to it.
+			-- Straight-line bound; the links, lanes and plaza ring keep the real walk close to it.
 			local far = 0
 			for _, p in V.plots do
 				local gate = (Village.PlotFrame(p) * CFrame.new(0, 0, -V.plotSize.z / 2)).Position
 				far = math.max(far, math.sqrt((gate.X - V.spawn.x) ^ 2 + (gate.Z - V.spawn.z) ^ 2))
 			end
-			return far <= 350, string.format("farthest gate %.0f studs", far)
+			return far <= 450, string.format("farthest gate %.0f studs", far)
+		end,
+	},
+	{
+		name = "river footbridges line up with their paths",
+		run = function()
+			local paths = { BridgeSouth = true, BridgeMid = true, BridgeNorth = true }
+			local found = 0
+			for _, road in V.roads do
+				if paths[road.name] then
+					found += 1
+					local z = road.points[1].z
+					local reaches = road.points[#road.points].x > World.RiverX(z) + V.river.halfWidth
+					local listed = table.find(V.river.bridges, z) ~= nil
+					if not reaches or not listed then
+						return false, road.name
+					end
+				end
+			end
+			return found == #V.river.bridges, string.format("%d bridges", found)
 		end,
 	},
 	{
@@ -308,8 +333,8 @@ local cases: { Case } = {
 				{ Vector3.new(0, y, 80), "mistwood" },
 				{ Vector3.new(-30, y, 214), "mistwood" },
 				{ Vector3.new(0, y, 446), "last_lantern_village" },
-				{ Vector3.new(0, y, 1000), "last_lantern_village" },
-				{ Vector3.new(-127, y, 925), "last_lantern_village" },
+				{ Vector3.new(0, y, 1200), "last_lantern_village" },
+				{ Vector3.new(135, y, 1045), "last_lantern_village" },
 			}
 			for _, s in samples do
 				local got = zoneAt(s[1] :: Vector3)

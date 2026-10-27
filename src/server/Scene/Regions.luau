@@ -73,7 +73,7 @@ function Regions.Build(root: Instance)
 	local world = Kit.Folder(root, "Regions")
 	-- Far ground under the backdrop beyond the courtyard's own outer ground.
 	local far = Kit.Folder(world, "Decor")
-	Kit.Part(far, "FarGround", Vector3.new(1200, 2, 1000), CFrame.new(0, FLOOR_Y - 1.15, 750), Kit.Palette.Hill, Enum.Material.Grass)
+	Kit.Part(far, "FarGround", Vector3.new(1300, 2, 1100), CFrame.new(0, FLOOR_Y - 1.15, 800), Kit.Palette.Hill, Enum.Material.Grass)
 	buildBounds(world)
 	Mistwood.Build(region(world, "Mistwood"))
 	local village = region(world, "Village")

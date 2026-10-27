@@ -1,13 +1,13 @@
 --!strict
 -- M2-B greybox of the Last Lantern Village (หมู่บ้านโคมสุดท้าย), styled
--- after a Shirakawa-gō gasshō village in autumn. Oval layout from the
--- Director's second sketch (27 Oct 2026): an ancient sacred tree on a stone
--- plaza in the middle with market stalls round it, a straight road down each
--- long side, and six player houses with big yards along the outside of each
--- road, facing in. The entrance from the forest forks (a Y) into the two
--- roads, which meet again at the north road. A stone avenue and two lanes cut
--- across the middle so no walk goes all the way round. Paddies to the east,
--- a grove to the west, the keeper's shrine outside the south-east corner.
+-- after a Shirakawa-gō gasshō village in autumn. Layout from the Director's
+-- third picture (27 Oct 2026): the sacred tree on a round stone plaza with
+-- four market stalls in the middle, and three house islands round it (one
+-- south, two north). An island is four player plots in a 2x2 grid whose gates
+-- open onto a shared lawn with a big maple, ringed by a road. Roads link the
+-- plaza to the islands and make a loop; a river with three footbridges runs
+-- down the east side with paddies on its far bank; a great tree shrine sits
+-- outside the south-west corner and a roped torii closes the north road.
 -- Hub only: no enemies, no rewards.
 -- Layout numbers come from Definitions/World; plots are filled at runtime by
 -- PlotService through BuildPlotLocked / BuildPlotHouse.
@@ -25,6 +25,7 @@ local SEED = 20261102
 local CENTER = Vector3.new(V.center.x, 0, V.center.z)
 local GATE_HALF = 7 -- plot gate half-width
 local YARD_RADIUS = 32 -- spirit yard in front of each player house (about ten large spirits)
+local WATER = Color3.fromRGB(64, 112, 132)
 local FLOWERS = {
 	Color3.fromRGB(196, 62, 72),
 	Color3.fromRGB(236, 226, 214),
@@ -44,7 +45,7 @@ local function heading(angle: number): Vector3
 	return Vector3.new(math.sin(a), 0, -math.cos(a))
 end
 
--- Point on a circle round the village centre, same angle convention.
+-- Point on a circle round the plaza centre, same angle convention.
 local function onCircle(angle: number, radius: number): Vector3
 	return CENTER + heading(angle) * radius
 end
@@ -54,45 +55,66 @@ local function facing(x: number, z: number, tx: number, tz: number): CFrame
 	return CFrame.lookAt(Vector3.new(x, 0, z), Vector3.new(tx, 0, tz))
 end
 
--- Frame on the stall circle whose front faces away from the tree.
+-- Frame on a circle round the plaza whose front faces away from the tree.
 local function facingOut(angle: number, radius: number): CFrame
 	local p = onCircle(angle, radius)
 	return CFrame.lookAt(p, p + heading(angle))
 end
 
--- The grove cottage sits on the grove's edge nearest the village.
-function Village.GroveCottageX(): number
-	local g = V.grove
-	return g.x - math.sign(g.x) * (g.radius - 4)
-end
-
--- Plot frame: centre of the yard, front (gate, local -Z) toward the road.
+-- Plot frame: centre of the yard, front (gate, local -Z) toward the lawn.
 function Village.PlotFrame(plot: PlotDef): CFrame
 	local p = Vector3.new(plot.x, 0, plot.z)
 	return CFrame.lookAt(p, p + heading(plot.angle))
+end
+
+local function distToSegments(pts: { World.XZ }, x: number, z: number): number
+	local best = math.huge
+	for i = 1, #pts - 1 do
+		local a, b = pts[i], pts[i + 1]
+		local dx, dz = b.x - a.x, b.z - a.z
+		local t = math.clamp(((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz), 0, 1)
+		best = math.min(best, math.sqrt((x - a.x - dx * t) ^ 2 + (z - a.z - dz * t) ^ 2))
+	end
+	return best
 end
 
 -- Distance from (x, z) to the nearest road edge (negative on a road).
 function Village.DistanceToRoad(x: number, z: number): number
 	local best = math.huge
 	for _, road in V.roads do
-		local pts = road.points
-		for i = 1, #pts - 1 do
-			local a, b = pts[i], pts[i + 1]
-			local dx, dz = b.x - a.x, b.z - a.z
-			local t = math.clamp(((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz), 0, 1)
-			local d = math.sqrt((x - a.x - dx * t) ^ 2 + (z - a.z - dz * t) ^ 2) - road.halfWidth
-			best = math.min(best, d)
-		end
+		best = math.min(best, distToSegments(road.points, x, z) - road.halfWidth)
 	end
 	return best
 end
 
--- Distance from (x, z) to the plaza's stadium outline (negative inside).
+-- Distance to the plaza's outer road edge (negative inside it).
 function Village.DistanceToPlaza(x: number, z: number): number
-	local straight = V.plazaHalfZ - V.plazaHalfX
-	local dz = math.max(math.abs(z - V.center.z) - straight, 0)
-	return math.sqrt((x - V.center.x) ^ 2 + dz * dz) - V.plazaHalfX
+	return math.sqrt((x - V.center.x) ^ 2 + (z - V.center.z) ^ 2) - V.plazaRingRadius - V.roadHalfWidth
+end
+
+-- Distance to the river's bank (negative in the water).
+function Village.DistanceToRiver(x: number, z: number): number
+	return distToSegments(V.river.points, x, z) - V.river.halfWidth
+end
+
+-- True when (x, z) is within `margin` of an island's ring road footprint.
+function Village.NearIsland(x: number, z: number, margin: number): boolean
+	local r = V.islandRing
+	for _, isl in V.islands do
+		if math.abs(x - isl.x) < r.x + V.roadHalfWidth + margin and math.abs(z - isl.z) < r.z + V.roadHalfWidth + margin then
+			return true
+		end
+	end
+	return false
+end
+
+local function inPaddies(x: number, z: number, margin: number): boolean
+	for _, pd in V.paddies do
+		if x > pd.minX - margin and x < pd.maxX + margin and z > pd.minZ - margin and z < pd.maxZ + margin then
+			return true
+		end
+	end
+	return false
 end
 
 -- Circles (x, z, radius) that scattered trees must keep clear of.
@@ -108,47 +130,54 @@ local function clear(x: number, z: number, r: number): boolean
 	return true
 end
 
--- Open ground for a tree or prop of radius `r`: off the roads, the plaza,
--- the pond and everything already placed.
+-- Open ground for a tree or prop of radius `r`: off the roads, plaza, river,
+-- islands, paddies and everything already placed.
 local function isOpen(x: number, z: number, r: number): boolean
-	return Village.DistanceToRoad(x, z) > r + 1.5 and Village.DistanceToPlaza(x, z) > r + 2 and clear(x, z, r)
+	return Village.DistanceToRoad(x, z) > r + 1.5
+		and Village.DistanceToPlaza(x, z) > r + 2
+		and Village.DistanceToRiver(x, z) > r + 4
+		and not Village.NearIsland(x, z, r + 4)
+		and not inPaddies(x, z, r + 4)
+		and clear(x, z, r)
+end
+
+local function discAt(parent: Instance, name: string, x: number, z: number, radius: number, top: number, color: Color3, material: Enum.Material): BasePart
+	-- Cylinder axis is local X; stand it on end to make a flat disc.
+	return Kit.Part(parent, name, Vector3.new(0.2, radius * 2, radius * 2), CFrame.new(x, FLOOR_Y + top - 0.1, z) * CFrame.Angles(0, 0, math.rad(90)), color, material, "Cylinder")
+end
+
+local function bench(f: Folders, x: number, z: number, tx: number, tz: number)
+	Kit.Part(f.solid, "Bench", Vector3.new(5, 1.2, 1.6), facing(x, z, tx, tz) * CFrame.new(0, FLOOR_Y + 0.6, 0), P.HouseWood, Enum.Material.Wood)
+	table.insert(blockers, { x, z, 3 })
 end
 
 ------------------------------------------------------------------------------
 -- Ground, roads, plaza
 ------------------------------------------------------------------------------
 
-local function stadium(parent: Instance, name: string, halfX: number, halfZ: number, top: number, color: Color3, material: Enum.Material)
-	local straight = halfZ - halfX
-	Kit.Slab(parent, name, halfX * 2, straight * 2, top, V.center.x, V.center.z, color, material)
-	for _, dz in { -1, 1 } do
-		-- Cylinder axis is local X; stand it on end to make a flat disc.
-		Kit.Part(parent, name, Vector3.new(0.2, halfX * 2, halfX * 2), CFrame.new(V.center.x, FLOOR_Y + top - 0.1, V.center.z + dz * straight) * CFrame.Angles(0, 0, math.rad(90)), color, material, "Cylinder")
-	end
-end
-
 local function buildGround(f: Folders, rng: Random)
 	local w, d = V.maxX - V.minX, V.maxZ - V.minZ
 	Kit.Part(f.solid, "Ground", Vector3.new(w, 2, d), CFrame.new((V.minX + V.maxX) / 2, FLOOR_Y - 1, (V.minZ + V.maxZ) / 2), P.Grass, Enum.Material.Grass)
-	for _ = 1, 160 do
+	for _ = 1, 200 do
 		Kit.Slab(f.decor, "GrassPatch", rng:NextNumber(10, 26), rng:NextNumber(8, 20), 0.03, rng:NextNumber(V.minX + 10, V.maxX - 10), rng:NextNumber(V.minZ + 10, V.maxZ - 10), Kit.Jitter(rng, P.GrassDark, 0.1), Enum.Material.Grass, rng:NextNumber(0, math.pi))
 	end
 	local paths = Kit.Folder(f.decor, "Paths")
-	-- Earth roads; the shortcuts through the middle are paved.
+	-- Earth roads; the links, lanes, bridge paths and plaza ring are paved.
 	for _, road in V.roads do
-		local paved = road.halfWidth < V.roadHalfWidth
+		local paved = road.halfWidth < V.roadHalfWidth or road.name == "PlazaRing"
 		Kit.Strip(paths, road.name, road.points, road.halfWidth, if paved then 0.07 else 0.06, if paved then P.PathStone else P.PathDirt, if paved then Enum.Material.Slate else Enum.Material.Ground)
 	end
-	-- Stone plaza under the tree, with a darker kerb.
-	stadium(paths, "PlazaKerb", V.plazaHalfX + 1, V.plazaHalfZ + 1, 0.09, P.StoneDark, Enum.Material.Slate)
-	stadium(paths, "Plaza", V.plazaHalfX, V.plazaHalfZ, 0.1, P.PathStone, Enum.Material.Slate)
-	-- Stepping path from the road to every plot gate.
-	for _, plot in V.plots do
-		local side = math.sign(plot.x)
-		local a = { x = side * (V.roadX + V.roadHalfWidth - 1), z = plot.z }
-		local b = { x = side * (V.plotFrontX + 1), z = plot.z }
-		Kit.Strip(paths, "PlotPath", { a, b }, GATE_HALF - 1, 0.07, P.PathStone, Enum.Material.Slate)
+	-- Stone plaza under the tree, with a darker kerb, and four walks out to the ring.
+	discAt(paths, "PlazaKerb", V.center.x, V.center.z, V.plazaRadius + 1, 0.09, P.StoneDark, Enum.Material.Slate)
+	discAt(paths, "Plaza", V.center.x, V.center.z, V.plazaRadius, 0.1, P.PathStone, Enum.Material.Slate)
+	for _, angle in { 0, 90, 180, 270 } do
+		local a, b = onCircle(angle, V.plazaRadius - 2), onCircle(angle, V.plazaRingRadius - 4)
+		Kit.Strip(paths, "Walk", { { x = a.X, z = a.Z }, { x = b.X, z = b.Z } }, 3, 0.08, P.PathStone, Enum.Material.Slate)
 	end
+	-- The spawn square on the road between the south island and the plaza.
+	local sp = V.spawn
+	discAt(paths, "SpawnSquareKerb", sp.x, sp.z, 15, 0.09, P.StoneDark, Enum.Material.Slate)
+	discAt(paths, "SpawnSquare", sp.x, sp.z, 14, 0.1, P.PathStone, Enum.Material.Slate)
 end
 
 ------------------------------------------------------------------------------
@@ -207,28 +236,19 @@ local function buildSacredTree(f: Folders, rng: Random)
 	local sign = Kit.Part(f.decor, "TreeSign", Vector3.new(0.5, 0.5, 0.5), CFrame.new(cx, FLOOR_Y + 14, cz), P.Amber, Enum.Material.Neon)
 	sign.Transparency = 1
 	Kit.Label(sign, "ต้นไม้ศักดิ์สิทธิ์", 0, 70)
-	for _, dz in { -1, 1 } do
-		table.insert(blockers, { cx, cz + dz * (V.plazaHalfZ - V.plazaHalfX), V.plazaHalfX })
-	end
+	table.insert(blockers, { cx, cz, V.plazaRingRadius + 6 })
 end
 
 local function buildPlazaLanterns(f: Folders)
-	-- Pairs of stone lanterns where the avenue and the side walks meet the
-	-- plaza, and at its north tip.
-	local cx, cz = V.center.x, V.center.z
-	local spots = {
-		{ cx - 7, cz - V.plazaHalfZ - 2, true },
-		{ cx + 7, cz - V.plazaHalfZ - 2, false },
-		{ cx - 7, cz + V.plazaHalfZ + 2, false },
-		{ cx + 7, cz + V.plazaHalfZ + 2, false },
-		{ cx - V.plazaHalfX - 2, cz - 7, false },
-		{ cx - V.plazaHalfX - 2, cz + 7, false },
-		{ cx + V.plazaHalfX + 2, cz - 7, false },
-		{ cx + V.plazaHalfX + 2, cz + 7, true },
-	}
-	for _, s in spots do
-		Kit.StreetLantern(f, s[1] :: number, s[2] :: number, s[3] :: boolean)
-		table.insert(blockers, { s[1] :: number, s[2] :: number, 2 })
+	-- Lanterns just outside the stalls, benches facing the tree between them.
+	for i, angle in { 45, 135, 225, 315 } do
+		local p = onCircle(angle, 54)
+		Kit.StreetLantern(f, p.X, p.Z, i == 1 or i == 3)
+		table.insert(blockers, { p.X, p.Z, 2 })
+	end
+	for _, angle in { 22.5, 112.5, 202.5, 292.5 } do
+		local p = onCircle(angle, 53)
+		bench(f, p.X, p.Z, V.center.x, V.center.z)
 	end
 end
 
@@ -313,18 +333,13 @@ local function buildStalls(f: Folders, rng: Random)
 end
 
 ------------------------------------------------------------------------------
--- Lawns between the roads: spawn lawn and avenue, side lawns, north garden
+-- Spawn square, house islands, ponds, street lanterns
 ------------------------------------------------------------------------------
 
-local function bench(f: Folders, x: number, z: number, tx: number, tz: number)
-	Kit.Part(f.solid, "Bench", Vector3.new(5, 1.2, 1.6), facing(x, z, tx, tz) * CFrame.new(0, FLOOR_Y + 0.6, 0), P.HouseWood, Enum.Material.Wood)
-	table.insert(blockers, { x, z, 3 })
-end
-
-local function buildLawns(f: Folders, rng: Random)
-	local cx, cz = V.center.x, V.center.z
+local function buildSpawnSquare(f: Folders)
+	local sp = V.spawn
 	-- Quest board beside the spawn, facing it (M2-D).
-	local bcf = facing(cx + 14, V.spawn.z + 8, V.spawn.x, V.spawn.z)
+	local bcf = facing(sp.x + 22, sp.z + 4, sp.x, sp.z)
 	for _, dx in { -2.2, 2.2 } do
 		Kit.Part(f.solid, "BoardPost", Vector3.new(0.5, 6, 0.5), bcf * CFrame.new(dx, FLOOR_Y + 3, 0), P.HouseWoodDark, Enum.Material.Wood)
 	end
@@ -332,100 +347,180 @@ local function buildLawns(f: Folders, rng: Random)
 	Kit.Part(f.decor, "QuestBoardRoof", Vector3.new(6, 0.4, 1.4), bcf * CFrame.new(0, FLOOR_Y + 6.2, 0), P.ThatchDark, Enum.Material.Grass)
 	Kit.Label(board, "กระดานเควสต์", 3.5, 60)
 	table.insert(blockers, { bcf.Position.X, bcf.Position.Z, 5 })
-	table.insert(blockers, { V.spawn.x, V.spawn.z, 8 })
-	-- Benches: along the avenue, and on the side lawns facing the tree.
-	for _, z in { 470, 530 } do
-		bench(f, cx - 8, z, cx, z)
-		bench(f, cx + 8, z, cx, z)
-	end
+	table.insert(blockers, { sp.x, sp.z, 16 })
 	for _, side in { -1, 1 } do
-		for _, z in { cz - 46, cz + 46 } do
-			bench(f, side * (V.plazaHalfX + 6), z, cx, z)
+		Kit.StreetLantern(f, sp.x + side * 12, sp.z - 8, side > 0)
+		table.insert(blockers, { sp.x + side * 12, sp.z - 8, 2 })
+	end
+end
+
+-- One house island: the lawn between the two plot rows is a cross of stone
+-- paths round a big maple, with benches, lanterns and wildflowers.
+local function buildIsland(f: Folders, rng: Random, isl: World.Island, light: boolean)
+	local cx, cz = isl.x, isl.z
+	local hx, hz = V.islandRing.x, V.islandRing.z
+	local paths = Kit.Folder(f.decor, "IslandPaths_" .. isl.id)
+	-- Lane between the two plot columns, lawn strip between the two rows,
+	-- and a stub from every gate to the strip.
+	Kit.Strip(paths, "Lane", { { x = cx, z = cz - hz + 5 }, { x = cx, z = cz + hz - 5 } }, 3.5, 0.07, P.PathStone, Enum.Material.Slate)
+	Kit.Strip(paths, "Strip", { { x = cx - hx + 5, z = cz }, { x = cx + hx - 5, z = cz } }, 4, 0.07, P.PathStone, Enum.Material.Slate)
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			Kit.Strip(paths, "GateStub", { { x = cx + sx * V.plotAt.x, z = cz + sz * (V.plotAt.z - 47) }, { x = cx + sx * V.plotAt.x, z = cz } }, 2.5, 0.07, P.PathStone, Enum.Material.Slate)
 		end
 	end
-	-- Maple avenue: a row each side of the stone avenue, clear of the spawn.
-	for z = 440, 580, 28 do
-		for _, side in { -1, 1 } do
-			local x = cx + side * 13
-			if isOpen(x, z, 4) then
-				Kit.Maple(f, rng, x, z, rng:NextNumber(1.3, 1.5))
-				table.insert(blockers, { x, z, 4 })
-			end
-		end
+	discAt(paths, "TreeKerb", cx, cz, 10, 0.09, P.StoneDark, Enum.Material.Slate)
+	discAt(paths, "TreeBed", cx, cz, 9, 0.1, P.Grass, Enum.Material.Grass)
+	Kit.Maple(f, rng, cx, cz, 2.5)
+	table.insert(blockers, { cx, cz, 14 })
+	for _, side in { -1, 1 } do
+		bench(f, cx + side * 24, cz + 9, cx + side * 24, cz)
+		bench(f, cx + side * 24, cz - 9, cx + side * 24, cz)
+		Kit.StreetLantern(f, cx + side * 14, cz - 9, light and side > 0)
 	end
-	-- Side lawns between the plaza and the roads, and the lawns between the
-	-- fork arms and the north arms: maples wherever there is room.
-	local placed = 0
-	for _ = 1, 400 do
-		if placed >= 34 then
-			break
-		end
-		local x = rng:NextNumber(-V.roadX + 6, V.roadX - 6)
-		local z = rng:NextNumber(440, 970)
-		local scale = rng:NextNumber(1.2, 1.6)
-		if isOpen(x, z, 4 * scale) and math.abs(x) > 18 then
-			table.insert(blockers, { x, z, 4 * scale })
-			Kit.Maple(f, rng, x, z, scale)
-			placed += 1
+	-- Wildflowers on the lawn strip, off the paths and the benches.
+	for _ = 1, 16 do
+		local x = cx + rng:NextNumber(-(hx - 14), hx - 14)
+		local z = cz + rng:NextNumber(-17, 17)
+		if math.abs(z - cz) > 6 and math.abs(x - cx) > 14 then
+			local s = rng:NextNumber(1, 1.7)
+			Kit.Part(f.decor, "Flowers", Vector3.new(s, s * 0.7, s), CFrame.new(x, FLOOR_Y + 0.5, z), FLOWERS[rng:NextInteger(1, #FLOWERS)], Enum.Material.Grass, "Ball")
 		end
 	end
 end
 
-local function buildPond(f: Folders, rng: Random)
-	-- Garden pond on the north lawn: water, a ring of rocks, reeds, two lanterns.
-	local pd = V.pond
-	Kit.Part(f.decor, "PondBank", Vector3.new(0.2, (pd.radius + 2) * 2, (pd.radius + 2) * 2), CFrame.new(pd.x, FLOOR_Y + 0.04, pd.z) * CFrame.Angles(0, 0, math.rad(90)), P.PathDirt, Enum.Material.Ground, "Cylinder")
-	local water = Kit.Part(f.decor, "PondWater", Vector3.new(0.2, pd.radius * 2, pd.radius * 2), CFrame.new(pd.x, FLOOR_Y + 0.08, pd.z) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(58, 92, 104), Enum.Material.Glass, "Cylinder")
+local function buildPond(f: Folders, rng: Random, pd: { x: number, z: number, radius: number })
+	-- Pond: bank, water, a ring of rocks, reeds and lily pads.
+	discAt(f.decor, "PondBank", pd.x, pd.z, pd.radius + 2, 0.04, P.PathDirt, Enum.Material.Ground)
+	local water = discAt(f.decor, "PondWater", pd.x, pd.z, pd.radius, 0.08, WATER, Enum.Material.Glass)
 	water.Transparency = 0.15
 	water.Reflectance = 0.2
-	for i = 0, 17 do
-		local a = i / 18 * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
+	for i = 0, 15 do
+		local a = i / 16 * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
 		local s = rng:NextNumber(1.6, 3)
 		local r = pd.radius + rng:NextNumber(0, 1.4)
 		Kit.Part(f.decor, "PondRock", Vector3.new(s, s * 0.6, s * 0.9), CFrame.new(pd.x + math.cos(a) * r, FLOOR_Y + s * 0.2, pd.z + math.sin(a) * r), Kit.Jitter(rng, P.Stone, 0.12), Enum.Material.Slate, "Ball")
 	end
-	for _ = 1, 8 do
+	for _ = 1, 5 do
+		local a, d = rng:NextNumber(0, math.pi * 2), rng:NextNumber(0, pd.radius - 3)
+		discAt(f.decor, "LilyPad", pd.x + math.cos(a) * d, pd.z + math.sin(a) * d, 1.4, 0.12, P.Fern, Enum.Material.Grass)
+	end
+	for _ = 1, 6 do
 		local a = rng:NextNumber(0, math.pi * 2)
 		Kit.Part(f.decor, "Reed", Vector3.new(0.3, 3, 0.3), CFrame.new(pd.x + math.cos(a) * (pd.radius - 1.5), FLOOR_Y + 1.5, pd.z + math.sin(a) * (pd.radius - 1.5)), P.Stubble, Enum.Material.Grass)
 	end
-	for _, side in { -1, 1 } do
-		ShrineCourtyard.StoneLantern(f.decor, pd.x + side * (pd.radius + 5), pd.z - 4)
-	end
-	table.insert(blockers, { pd.x, pd.z, pd.radius + 6 })
+	table.insert(blockers, { pd.x, pd.z, pd.radius + 5 })
 end
 
 local function buildStreetLanterns(f: Folders)
-	-- On the verge between each road and the plot fences, between houses;
-	-- and on the inner side of the roads opposite the gates.
-	local verge = (V.roadX + V.roadHalfWidth + V.plotFrontX) / 2
-	local i = 0
-	for _, z in { 520, 610, 700, 790, 880 } do
-		for _, side in { -1, 1 } do
-			i += 1
-			Kit.StreetLantern(f, side * verge, z, i == 3 or i == 8)
+	-- Outside every island ring, along the entrance and along the north road.
+	local ringOut = V.islandRing.x + V.roadHalfWidth + 4
+	for _, isl in V.islands do
+		for _, sx in { -1, 1 } do
+			for _, dz in { -60, 60 } do
+				local x, z = isl.x + sx * ringOut, isl.z + dz
+				Kit.StreetLantern(f, x, z, false)
+				table.insert(blockers, { x, z, 2 })
+			end
 		end
 	end
-	for _, z in { 475, 655, 745, 925 } do
-		for _, side in { -1, 1 } do
-			local x = side * (V.roadX - V.roadHalfWidth - 2.5)
-			Kit.StreetLantern(f, x, z, false)
-			table.insert(blockers, { x, z, 2 })
-		end
-	end
-	-- At the fork, where the entrance splits.
 	for _, side in { -1, 1 } do
-		Kit.StreetLantern(f, side * 9, 412, side > 0)
+		for _, z in { 372, 416 } do
+			Kit.StreetLantern(f, side * 9, z, side > 0 and z == 372)
+		end
+		for _, z in { 900, 980, 1060, 1140, 1200 } do
+			Kit.StreetLantern(f, side * 12, z, false)
+			table.insert(blockers, { side * 12, z, 2 })
+		end
 	end
 end
 
 ------------------------------------------------------------------------------
--- Keeper's shrine, north gate, NPC houses, paddies, grove, backdrop
+-- River, footbridges, paddies
 ------------------------------------------------------------------------------
 
-local function buildKeeperShrine(f: Folders)
+local function buildRiver(f: Folders, rng: Random)
+	local r = V.river
+	local water = Kit.Folder(f.decor, "River")
+	local pts = r.points
+	for i = 1, #pts - 1 do
+		local a, b = pts[i], pts[i + 1]
+		local dx, dz = b.x - a.x, b.z - a.z
+		local len = math.sqrt(dx * dx + dz * dz)
+		local seg = Kit.Part(water, "Water", Vector3.new(r.halfWidth * 2, 0.2, len + 1), CFrame.new((a.x + b.x) / 2, FLOOR_Y + 0.02, (a.z + b.z) / 2) * CFrame.Angles(0, math.atan2(dx, dz), 0), WATER, Enum.Material.Glass)
+		seg.Transparency = 0.15
+		seg.Reflectance = 0.15
+	end
+	-- Boulders along both banks, and a white fall at the north end.
+	for z = 350, 1250, 14 do
+		local x = World.RiverX(z)
+		local side = if rng:NextNumber() < 0.5 then -1 else 1
+		local s = rng:NextNumber(2, 4.5)
+		Kit.Part(water, "BankRock", Vector3.new(s, s * 0.7, s * 1.1), CFrame.new(x + side * (r.halfWidth + rng:NextNumber(0, 1.5)), FLOOR_Y + s * 0.25, z), Kit.Jitter(rng, P.Stone, 0.15), Enum.Material.Slate, "Ball")
+	end
+	local top = pts[#pts]
+	Kit.Part(water, "FallRock", Vector3.new(26, 18, 14), CFrame.new(top.x, FLOOR_Y + 7, top.z + 6), P.StoneDark, Enum.Material.Slate, "Ball")
+	local fall = Kit.Part(water, "Waterfall", Vector3.new(10, 16, 0.6), CFrame.new(top.x, FLOOR_Y + 8, top.z - 2), Color3.fromRGB(226, 236, 240), Enum.Material.SmoothPlastic)
+	fall.Transparency = 0.25
+	-- Invisible walls down the river's centre keep players on their own bank;
+	-- each footbridge leaves a gap.
+	for z = 350, 1250, 10 do
+		local open = false
+		for _, bz in r.bridges do
+			if math.abs(z - bz) < 7 then
+				open = true
+			end
+		end
+		if not open then
+			local dx = World.RiverX(z + 5) - World.RiverX(z - 5)
+			local wall = Kit.Part(f.solid, "RiverBound", Vector3.new(1, 12, 12.5), CFrame.new(World.RiverX(z), FLOOR_Y + 6, z) * CFrame.Angles(0, math.atan2(dx, 10), 0), P.Stone, Enum.Material.Slate)
+			wall.Transparency = 1
+		end
+	end
+	-- Footbridges: plank deck, rails and posts, in line with the paths.
+	for _, bz in r.bridges do
+		local x = World.RiverX(bz)
+		local span = r.halfWidth * 2 + 10
+		Kit.Part(f.decor, "BridgeDeck", Vector3.new(span, 0.5, 8), CFrame.new(x, FLOOR_Y + 0.4, bz), P.HouseWood, Enum.Material.WoodPlanks)
+		for _, side in { -1, 1 } do
+			Kit.Part(f.decor, "BridgeRail", Vector3.new(span, 0.4, 0.4), CFrame.new(x, FLOOR_Y + 2.2, bz + side * 4), P.HouseWoodDark, Enum.Material.Wood)
+			for _, k in { -1, -0.5, 0, 0.5, 1 } do
+				Kit.Part(f.decor, "BridgePost", Vector3.new(0.5, 2.2, 0.5), CFrame.new(x + k * (span / 2 - 0.5), FLOOR_Y + 1.5, bz + side * 4), P.HouseWoodDark, Enum.Material.Wood)
+			end
+		end
+	end
+end
+
+local function buildPaddies(f: Folders, rng: Random)
+	-- Harvested terraces on the far bank, stepping up away from the river.
+	-- Solid so nobody walks through a step.
+	for _, pd in V.paddies do
+		local steps = 3
+		local stepW = (pd.maxX - pd.minX) / steps
+		for step = 0, steps - 1 do
+			local x = pd.minX + stepW * (step + 0.5)
+			local h = 0.6 + step * 0.9
+			for z = pd.minZ + 11, pd.maxZ - 11, 22 do
+				local zz = z + rng:NextNumber(-1, 1)
+				Kit.Part(f.solid, "Terrace", Vector3.new(stepW, h, 20), CFrame.new(x, FLOOR_Y + h / 2 - 0.1, zz), P.PaddyRidge, Enum.Material.Ground)
+				Kit.Slab(f.decor, "Stubble", stepW - 1, 19, h + 0.02, x, zz, Kit.Jitter(rng, P.Stubble, 0.08), Enum.Material.Grass)
+				if rng:NextNumber() < 0.25 then
+					Kit.Part(f.decor, "RiceRack", Vector3.new(0.6, 2.4, 12), CFrame.new(x, FLOOR_Y + h + 1.6, zz), P.Stubble, Enum.Material.Grass)
+				end
+			end
+		end
+		table.insert(blockers, { (pd.minX + pd.maxX) / 2, (pd.minZ + pd.maxZ) / 2, 0 })
+	end
+end
+
+------------------------------------------------------------------------------
+-- Great tree shrine, north gate, cottages, backdrop
+------------------------------------------------------------------------------
+
+local function buildGreatShrine(f: Folders, rng: Random)
 	local k = V.keeperShrine
-	-- Outside the south-east corner, front (and torii) toward the fork (west).
-	local cf = CFrame.new(k.x, 0, k.z) * CFrame.Angles(0, math.pi / 2, 0)
+	-- Outside the south-west corner, front (and torii) toward the village (east).
+	local cf = CFrame.new(k.x, 0, k.z) * CFrame.Angles(0, -math.pi / 2, 0)
 	local house = Kit.Gassho(f, cf * CFrame.new(0, 0, 4), { width = 16, depth = 13, wallHeight = 6.5, roofHeight = 10, eave = 3, windowRows = 1 })
 	house.Name = "KeeperShrine"
 	local toriiAt = cf * CFrame.new(0, 0, -10)
@@ -435,21 +530,34 @@ local function buildKeeperShrine(f: Folders)
 		pillar.Transparency = 1
 		local lp = (cf * CFrame.new(side * 6.5, 0, -2)).Position
 		ShrineCourtyard.StoneLantern(f.decor, lp.X, lp.Z)
+		-- Jizo statues either side of the steps.
+		local jp = cf * CFrame.new(side * 3.5, 0, -6)
+		Kit.Part(f.solid, "JizoBody", Vector3.new(1.4, 2.2, 1.2), jp * CFrame.new(0, FLOOR_Y + 1.1, 0), P.Stone, Enum.Material.Slate)
+		Kit.Part(f.decor, "JizoHead", Vector3.new(1, 1, 1), jp * CFrame.new(0, FLOOR_Y + 2.7, 0), P.Stone, Enum.Material.Slate, "Ball")
+		Kit.Part(f.decor, "JizoBib", Vector3.new(1.2, 0.7, 0.15), jp * CFrame.new(0, FLOOR_Y + 1.8, -0.65), P.ToriiRed, Enum.Material.Fabric)
 	end
-	-- Stone path from the shrine torii to the east road's fork arm.
-	local from = (toriiAt * CFrame.new(0, 0, -2)).Position
-	Kit.Strip(f.decor, "ShrinePath", { { x = from.X, z = from.Z }, { x = 84, z = from.Z }, { x = 52, z = 458 } }, 2.5, 0.065, P.PathStone, Enum.Material.Slate)
+	-- The great tree behind the hall: a huge cedar and a golden maple, with
+	-- a rope and paper streamers round the cedar.
+	local tx, tz = k.x - 26, k.z - 22
+	Kit.Cedar(f, rng, tx, tz, 3.2)
+	Kit.Maple(f, rng, k.x - 22, k.z + 26, 2.4)
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		Kit.Part(f.decor, "Shimenawa", Vector3.new(3, 1.1, 1.1), CFrame.new(tx + math.cos(a) * 3.6, FLOOR_Y + 10, tz + math.sin(a) * 3.6) * CFrame.Angles(0, -a + math.pi / 2, 0), P.Rope, Enum.Material.Fabric, "Cylinder")
+	end
 	local sign = Kit.Part(f.decor, "KeeperSign", Vector3.new(0.5, 0.5, 0.5), cf * CFrame.new(0, FLOOR_Y + 13, 0), P.Amber, Enum.Material.Neon)
 	sign.Transparency = 1
-	Kit.Label(sign, "ศาลผู้ดูแล", 0, 90)
-	table.insert(blockers, { k.x, k.z, 16 })
+	Kit.Label(sign, "ศาลต้นไม้ใหญ่", 0, 90)
+	table.insert(blockers, { k.x, k.z, 18 })
+	table.insert(blockers, { tx, tz, 12 })
+	table.insert(blockers, { k.x - 22, k.z + 26, 10 })
 end
 
 local function buildNorthGate(f: Folders)
 	-- Where the north road leaves the village: a torii roped off for now
 	-- (the road to a later zone).
-	local last = V.roads[4].points[2]
-	local at = CFrame.new(last.x, 0, last.z - 8)
+	local g = V.northGate
+	local at = CFrame.new(g.x, 0, g.z)
 	local half = V.roadHalfWidth + 2
 	ShrineCourtyard.Torii(f.decor, at, half, 11)
 	for _, side in { -1, 1 } do
@@ -463,7 +571,7 @@ local function buildNorthGate(f: Folders)
 	local sign = Kit.Part(f.decor, "NorthGateSign", Vector3.new(0.5, 0.5, 0.5), at * CFrame.new(0, FLOOR_Y + 14, 0), P.Amber, Enum.Material.Neon)
 	sign.Transparency = 1
 	Kit.Label(sign, "ทางขึ้นเขา (ยังไม่เปิด)", 0, 90)
-	table.insert(blockers, { at.Position.X, at.Position.Z, half + 3 })
+	table.insert(blockers, { g.x, g.z, half + 3 })
 end
 
 local function npcHouse(f: Folders, rng: Random, cf: CFrame)
@@ -478,90 +586,28 @@ local function npcHouse(f: Folders, rng: Random, cf: CFrame)
 end
 
 local function buildNpcHouses(f: Folders, rng: Random)
-	-- Each faces the middle line of the village at its own Z (toward the
-	-- fork or the north road).
+	-- Each faces the entrance road.
 	for _, h in V.npcHouses do
 		npcHouse(f, rng, facing(h.x, h.z, V.center.x, h.z))
 		table.insert(blockers, { h.x, h.z, 15 })
 	end
-end
-
-local function buildPaddies(f: Folders, rng: Random)
-	-- Harvested terraces on the east, stepping up away from the village.
-	-- Solid so nobody walks through a step.
-	local pd = V.paddies
-	local steps = 4
-	local stepW = (pd.maxX - pd.minX) / steps
-	for step = 0, steps - 1 do
-		local x = pd.minX + stepW * (step + 0.5)
-		local h = 0.6 + step * 0.9
-		for z = pd.minZ + 11, pd.maxZ - 11, 22 do
-			local zz = z + rng:NextNumber(-1, 1)
-			Kit.Part(f.solid, "Terrace", Vector3.new(stepW, h, 20), CFrame.new(x, FLOOR_Y + h / 2 - 0.1, zz), P.PaddyRidge, Enum.Material.Ground)
-			Kit.Slab(f.decor, "Stubble", stepW - 1, 19, h + 0.02, x, zz, Kit.Jitter(rng, P.Stubble, 0.08), Enum.Material.Grass)
-			if rng:NextNumber() < 0.25 then
-				Kit.Part(f.decor, "RiceRack", Vector3.new(0.6, 2.4, 12), CFrame.new(x, FLOOR_Y + h + 1.6, zz), P.Stubble, Enum.Material.Grass)
-			end
-		end
-	end
-	-- A farmhouse at the paddies' edge.
-	local cf = CFrame.new(pd.minX - 6, 0, pd.minZ - 12) * CFrame.Angles(0, math.pi / 2, 0)
-	npcHouse(f, rng, cf)
-	table.insert(blockers, { pd.minX - 6, pd.minZ - 12, 15 })
-	table.insert(blockers, { (pd.minX + pd.maxX) / 2, (pd.minZ + pd.maxZ) / 2, 0 })
-end
-
-local function inPaddies(x: number, z: number, margin: number): boolean
-	local pd = V.paddies
-	return x > pd.minX - margin and x < pd.maxX + margin and z > pd.minZ - margin and z < pd.maxZ + margin
-end
-
-local function buildGrove(f: Folders, rng: Random)
-	-- Maple and cedar grove to the west with a fenced cottage on its village side.
-	local g = V.grove
-	local cottage = CFrame.lookAt(Vector3.new(Village.GroveCottageX(), 0, g.z), CENTER)
-	npcHouse(f, rng, cottage)
-	table.insert(blockers, { cottage.Position.X, cottage.Position.Z, 18 })
-	-- Fence ring with a gap at the front (local -Z, toward the village).
-	for i = 0, 7 do
-		local a = i / 8 * math.pi * 2
-		if math.sin(a) > -0.9 then
-			local p = cottage * CFrame.new(math.cos(a) * 17, 0, math.sin(a) * 17)
-			Kit.Part(f.solid, "Fence", Vector3.new(0.5, 1.6, 13), CFrame.lookAt(p.Position, cottage.Position) * CFrame.new(0, FLOOR_Y + 0.8, 0) * CFrame.Angles(0, math.pi / 2, 0), P.HouseWood, Enum.Material.Wood)
-		end
-	end
-	local placed = 0
-	for _ = 1, 120 do
-		if placed >= 34 then
-			break
-		end
-		local a, d = rng:NextNumber(0, math.pi * 2), rng:NextNumber(0, g.radius)
-		local x, z = g.x + math.cos(a) * d, g.z + math.sin(a) * d
-		if math.abs(x) < V.maxX - 6 and clear(x, z, 4) then
-			table.insert(blockers, { x, z, 3 })
-			if rng:NextNumber() < 0.6 then
-				Kit.Maple(f, rng, x, z, rng:NextNumber(1, 1.4))
-			else
-				Kit.Cedar(f, rng, x, z, rng:NextNumber(1.1, 1.5))
-			end
-			placed += 1
-		end
-	end
+	-- A farmhouse on the far bank, front toward the river.
+	local fh = V.farmhouse
+	npcHouse(f, rng, facing(fh.x, fh.z, 0, fh.z))
+	table.insert(blockers, { fh.x, fh.z, 16 })
 end
 
 local function buildTrees(f: Folders, rng: Random)
-	-- Maples scattered behind the houses and round the corners, clear of the
-	-- plots, the roads, the lawns between the roads and the paddies.
+	-- Maples scattered between the islands, behind them and round the corners.
 	local placed = 0
-	for _ = 1, 1400 do
-		if placed >= 90 then
+	for _ = 1, 2400 do
+		if placed >= 110 then
 			break
 		end
 		local x = rng:NextNumber(V.minX + 6, V.maxX - 6)
 		local z = rng:NextNumber(V.minZ + 6, V.maxZ - 20)
 		local scale = rng:NextNumber(1.2, 1.7)
-		local between = math.abs(x) < V.roadX + 8 and z > 430 and z < 990
-		if not between and isOpen(x, z, 5 * scale) and not inPaddies(x, z, 6) then
+		if isOpen(x, z, 5 * scale) then
 			table.insert(blockers, { x, z, 4 * scale })
 			Kit.Maple(f, rng, x, z, scale)
 			placed += 1
@@ -569,18 +615,18 @@ local function buildTrees(f: Folders, rng: Random)
 	end
 	-- Cedar slope along the far (north) edge, leaving the north road open,
 	-- and along the outer east/west edges.
-	for _ = 1, 140 do
+	for _ = 1, 150 do
 		local x = rng:NextNumber(V.minX + 4, V.maxX - 4)
 		if math.abs(x) > V.roadHalfWidth + 8 then
 			Kit.Cedar(f, rng, x, rng:NextNumber(V.maxZ - 12, V.maxZ + 34), rng:NextNumber(1.2, 1.9))
 		end
 	end
 	for _, side in { -1, 1 } do
-		for _ = 1, 50 do
+		for _ = 1, 60 do
 			Kit.Cedar(f, rng, side * rng:NextNumber(V.maxX + 2, V.maxX + 30), rng:NextNumber(V.minZ, V.maxZ), rng:NextNumber(1.2, 1.8))
 		end
 	end
-	for _, h in { { -220, 1190, 380, 110 }, { 190, 1170, 400, 125 }, { -560, 700, 300, 90 }, { 560, 700, 300, 100 } } do
+	for _, h in { { -220, 1400, 380, 110 }, { 190, 1380, 400, 125 }, { -600, 800, 320, 90 }, { 600, 800, 320, 100 } } do
 		Kit.Part(f.decor, "Hill", Vector3.new(h[3], h[4] * 2, h[3] * 0.7), CFrame.new(h[1], FLOOR_Y - 6, h[2]), P.Hill, Enum.Material.Grass, "Ball")
 	end
 end
@@ -720,22 +766,26 @@ function Village.Build(region: Instance): { Model }
 	buildSacredTree(f, rng)
 	buildPlazaLanterns(f)
 	buildStalls(f, rng)
+	buildSpawnSquare(f)
 	local plotsFolder = Kit.Folder(region, "Plots")
 	local plots = {}
 	for i, plot in V.plots do
-		table.insert(blockers, { plot.x, plot.z, math.sqrt((V.plotSize.x / 2) ^ 2 + (V.plotSize.z / 2) ^ 2) })
 		local m = buildPlot(f, rng, plotsFolder, i, plot)
 		Village.BuildPlotLocked(m, plot)
 		table.insert(plots, m)
 	end
+	for _, isl in V.islands do
+		buildIsland(f, rng, isl, true)
+	end
+	for _, pd in V.ponds do
+		buildPond(f, rng, pd)
+	end
 	buildStreetLanterns(f)
-	buildPond(f, rng)
-	buildLawns(f, rng)
-	buildKeeperShrine(f)
+	buildRiver(f, rng)
+	buildPaddies(f, rng)
+	buildGreatShrine(f, rng)
 	buildNorthGate(f)
 	buildNpcHouses(f, rng)
-	buildPaddies(f, rng)
-	buildGrove(f, rng)
 	buildTrees(f, rng)
 	return plots
 end

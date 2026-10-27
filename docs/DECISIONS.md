@@ -18,5 +18,6 @@
 | DEC-012 | Remote namespace | SpiritWardRemotes + OwnedBy=SpiritWard; reuse owned instances, preserve collisions | Codex แก้และรัน regression ผ่าน 27 ต.ค. 2026 | ไม่ลบ Remotes เดิมของ place; QA scripts ใช้ namespace ใหม่ |
 | DEC-013 | Jitter allowance | จำกัดเป็น walk credit ที่มีเพดาน แทนแจก slack ใหม่ทุก sample | Codex แก้หลังพบ pure simulation speed28 ผ่านต่อเนื่อง; tests15/15 | รักษาความทน jitter แต่ไม่สะสมระยะเดินเกินจาก sampling |
 | DEC-014 | Touch action layout | CAS action buttons 2×2 ตาม Prototype.Input | Codex ตรวจ iPhone XR แล้วแก้ปุ่มฟันล้นจอ | ผ่าน simulator landscape หนึ่งขนาด; มือถือจริงยังไม่รับรอง |
+| DEC-015 | ผังหมู่บ้าน | ตามภาพที่ผู้ใช้เลือก 27 ต.ค. 2026: ลานต้นไม้ศักดิ์สิทธิ์กลาง + 3 เกาะบ้าน (เกาะละ 4 แปลง 2×2 รอบสนามต้นไม้) + แม่น้ำฝั่งตะวันออก + ศาลต้นไม้ใหญ่ SW; ลานบ้านคง 80×94; หมู่บ้าน 720×900 | confirmed by user 27 ต.ค. 2026, ยังไม่ได้ทดสอบใน Studio | แปลงเลข 1–4 อยู่เกาะใต้ใกล้จุดเกิด; ดู `World.Village` และ `Scene/Village.luau` |
 
 คำว่า baseline proposal คือค่าที่ใช้เดินหน้าออกแบบได้ตามขอบเขตที่ผู้ใช้มอบหมาย ไม่ใช่การยืนยันว่าได้ playtest หรือผู้ใช้เลือกค่าทุกข้อแล้ว
