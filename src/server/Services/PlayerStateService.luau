@@ -31,7 +31,7 @@ type Network = {
 }
 
 type Profiles = {
-	Load: (Player) -> ProfileRules.ProfileV1,
+	Load: (Player) -> ProfileRules.ProfileV1?,
 	Get: (Player) -> ProfileRules.ProfileV1?,
 	OnChanged: ((Player, ProfileRules.ProfileV1) -> ()) -> (),
 }
@@ -234,7 +234,8 @@ end
 
 local function onPlayer(player: Player)
 	local profile = profiles.Load(player)
-	local maxHp = ProfileRules.MaxHp(profile.level)
+	-- No profile (load failed): stay not-ready so `ready` answers NOT_READY.
+	local maxHp = ProfileRules.MaxHp(if profile then profile.level else 1)
 	states[player] = {
 		hp = maxHp,
 		maxHp = maxHp,
@@ -242,7 +243,7 @@ local function onPlayer(player: Player)
 		spiritGauge = 0,
 		transformEndsAt = nil,
 		cooldowns = {},
-		profileReady = true, -- memory profile is ready immediately (ProfileService.Mode)
+		profileReady = profile ~= nil,
 		revision = 0,
 		shieldHp = 0,
 		shieldEndsAt = nil,

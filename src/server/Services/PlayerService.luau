@@ -1,6 +1,7 @@
 --!strict
 -- P1 player setup: spawn at the prototype arena, respawn at the last touched
--- checkpoint, standard third-person camera with geometry occlusion (Zoom mode).
+-- checkpoint (saved to the profile, M3-B), standard third-person camera with
+-- geometry occlusion (Zoom mode).
 -- HP/gauge/cooldown state lives in PlayerStateService.
 
 local CollectionService = game:GetService("CollectionService")
@@ -9,14 +10,23 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local VisualPalette = require(ReplicatedStorage.Shared.Definitions.VisualPalette)
+local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
 
 type SceneService = {
 	GetSpawn: () -> SpawnLocation?,
+}
+type Profiles = {
+	Load: (Player) -> ProfileRules.ProfileV1?,
+	Mutate: (Player, (ProfileRules.ProfileV1) -> ()) -> boolean,
 }
 
 local PlayerService = {}
 
 local scene: SceneService
+local profiles: Profiles
+-- Players whose join spawn is settled. Before that, standing on the join
+-- spawn (itself a checkpoint) must not overwrite the saved checkpoint.
+local placed: { [Player]: true } = {}
 
 type Shape = "Block" | "Cylinder" | "Wedge"
 
@@ -132,6 +142,24 @@ local function setupPlayer(player: Player)
 		-- Joined before the arena existed (e.g. Play Solo race): move them in.
 		player:LoadCharacter()
 	end
+
+	-- M3-B: come back at the saved checkpoint. The starting one keeps the
+	-- arena spawn; an id no checkpoint carries (stored data) is ignored.
+	task.spawn(function()
+		local profile = profiles.Load(player)
+		if profile and profile.checkpointId ~= ProfileRules.StartingCheckpointId and player.Parent ~= nil then
+			for _, checkpoint in CollectionService:GetTagged("Checkpoint") do
+				if checkpoint:IsA("SpawnLocation") and checkpoint:GetAttribute("CheckpointId") == profile.checkpointId then
+					player.RespawnLocation = checkpoint
+					player:LoadCharacter()
+					break
+				end
+			end
+		end
+		if player.Parent ~= nil then
+			placed[player] = true
+		end
+	end)
 end
 
 local function bindCheckpoint(checkpoint: Instance)
@@ -143,14 +171,21 @@ local function bindCheckpoint(checkpoint: Instance)
 	checkpoint.Touched:Connect(function(hit: BasePart)
 		local character = hit:FindFirstAncestorOfClass("Model")
 		local player = character and Players:GetPlayerFromCharacter(character)
-		if player and player.RespawnLocation ~= checkpoint then
+		if player and placed[player] and player.RespawnLocation ~= checkpoint then
 			player.RespawnLocation = checkpoint
+			local id = checkpoint:GetAttribute("CheckpointId")
+			if type(id) == "string" then
+				profiles.Mutate(player, function(profile)
+					profile.checkpointId = id
+				end)
+			end
 		end
 	end)
 end
 
-function PlayerService.Init(deps: { SceneService: SceneService })
+function PlayerService.Init(deps: { SceneService: SceneService, Profiles: Profiles })
 	scene = deps.SceneService
+	profiles = deps.Profiles
 end
 
 function PlayerService.Start()
@@ -162,6 +197,9 @@ function PlayerService.Start()
 	CollectionService:GetInstanceAddedSignal("Checkpoint"):Connect(bindCheckpoint)
 
 	Players.PlayerAdded:Connect(setupPlayer)
+	Players.PlayerRemoving:Connect(function(player)
+		placed[player] = nil
+	end)
 	for _, player in Players:GetPlayers() do
 		setupPlayer(player)
 	end

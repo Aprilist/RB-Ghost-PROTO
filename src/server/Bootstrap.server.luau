@@ -29,7 +29,7 @@ SceneService.Init()
 NetworkService.Init()
 ProfileService.Init()
 PlayerStateService.Init({ Network = NetworkService, Profiles = ProfileService })
-PlayerService.Init({ SceneService = SceneService })
+PlayerService.Init({ SceneService = SceneService, Profiles = ProfileService })
 EnemyService.Init({ Network = NetworkService, PlayerState = PlayerStateService })
 MovementService.Init({ PlayerState = PlayerStateService })
 BossService.Init({ Network = NetworkService, PlayerState = PlayerStateService, Enemies = EnemyService })
@@ -95,14 +95,14 @@ NpcService.Start() -- needs the scene root
 -- Remotes start listening last, once every handler is registered.
 NetworkService.Start()
 
-print("[SpiritWard] M2-F server started: courtyard, Mistwood, village, zones, world clock, profile (memory), network, player state, movement, enemies (wisp, hitodama, kodama, karakasa), combat, spirit, rewards, plots, quests, NPCs, seals, boss, encounter.")
+print("[SpiritWard] M3-B server started: courtyard, Mistwood, village, zones, world clock, profile (" .. ProfileService.Mode .. " store + lease, autosave), network, player state, movement, enemies (wisp, hitodama, kodama, karakasa), combat, spirit, rewards, plots, quests, NPCs, seals, boss, encounter.")
 
 -- Studio only: run the pure rule tests and the arena layout check so a Play
 -- session prints "[MovementRulesTest] ...", "[SceneLayoutTest] ...",
 -- "[CatalogTest] ...", "[ProfileRulesTest] ...", "[RewardRulesTest] ...",
 -- "[WorldClockTest] ...", "[PlotRulesTest] ...", "[WorldLayoutTest] ...",
 -- "[EnemyAttackRulesTest] ...", "[QuestRulesTest] ...", "[QuestWorldTest] ..."
--- "[SealRulesTest] ...", "[BossRulesTest] ..." and "[EncounterRulesTest] ..."
+-- "[SealRulesTest] ...", "[BossRulesTest] ...", "[EncounterRulesTest] ..." and "[PersistenceTest] ..."
 -- without any manual step.
 if game:GetService("RunService"):IsStudio() then
 	task.defer(function()
@@ -120,5 +120,6 @@ if game:GetService("RunService"):IsStudio() then
 		require(script.Parent.Tests.SealRulesTest).Run()
 		require(script.Parent.Tests.BossRulesTest).Run()
 		require(script.Parent.Tests.EncounterRulesTest).Run()
+		require(script.Parent.Tests.PersistenceTest).Run()
 	end)
 end

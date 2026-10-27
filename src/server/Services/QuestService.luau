@@ -29,7 +29,7 @@ type Network = {
 }
 
 type Profiles = {
-	Load: (Player) -> ProfileV1,
+	Load: (Player) -> ProfileV1?,
 	Get: (Player) -> ProfileV1?,
 	Mutate: (Player, (ProfileV1) -> ()) -> boolean,
 }
