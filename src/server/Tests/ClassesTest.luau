@@ -9,7 +9,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Classes = require(ReplicatedStorage.Shared.Definitions.Classes)
 local Prototype = require(ReplicatedStorage.Shared.Definitions.Prototype)
 local Skills = require(ReplicatedStorage.Shared.Definitions.Skills)
+local ClassRules = require(script.Parent.Parent.Util.ClassRules)
 local Geometry = require(script.Parent.Parent.Util.Geometry)
+local ProfileMigrations = require(script.Parent.Parent.Util.ProfileMigrations)
 local ProfileRules = require(script.Parent.Parent.Util.ProfileRules)
 
 type Case = { name: string, run: () -> (boolean, string?) }
@@ -124,6 +126,73 @@ local cases: { Case } = {
 			p.classId = "pirate"
 			local ok, field = ProfileRules.Validate(p)
 			return not ok and field == "classId", field
+		end,
+	},
+	{
+		name = "class is picked once: first pick sets it, any later pick is CLASS_LOCKED and changes nothing",
+		run = function()
+			local p = ProfileRules.New(1, "blade")
+			local unknown = ClassRules.Choose(p, "pirate")
+			local first = ClassRules.Choose(p, "shade")
+			local again = ClassRules.Choose(p, "talisman")
+			local same = ClassRules.Choose(p, "shade")
+			local ok = unknown == "INVALID_PAYLOAD" and first == "OK" and again == "CLASS_LOCKED" and same == "CLASS_LOCKED"
+				and p.classId == "shade" and p.classChosen == true
+			return ok, table.concat({ unknown, first, again, same }, "/")
+		end,
+	},
+	{
+		name = "a new profile has not picked a class and has no skill points",
+		run = function()
+			local p = ProfileRules.New(1, "blade")
+			return p.classChosen == false and p.skillPoints == 0 and next(p.skills) == nil and ProfileRules.Validate(p), nil
+		end,
+	},
+	{
+		name = "each level-up gives 2 skill points; cap is 20",
+		run = function()
+			local p = ProfileRules.New(1, "blade")
+			local need = 0
+			for level = 1, 4 do
+				need += ProfileRules.XpToNext(level) :: number
+			end
+			ProfileRules.AddXp(p, need) -- level 1 → 5
+			return p.level == 5 and p.skillPoints == 8 and ProfileRules.LevelCap == 20, string.format("L%d sp %d", p.level, p.skillPoints)
+		end,
+	},
+	{
+		name = "migration v1 → v2: class must be picked again, points match the level, no skills",
+		run = function()
+			local old: any = ProfileRules.New(1, "talisman")
+			old.schemaVersion = 1
+			old.level = 4
+			old.classChosen, old.skillPoints, old.skills = nil, nil, nil
+			local p = ProfileMigrations.Load(old)
+			return p ~= nil and p.schemaVersion == 2 and p.classChosen == false and p.skillPoints == 6 and next(p.skills) == nil,
+				p and string.format("v%d sp %d", p.schemaVersion, p.skillPoints) or "refused"
+		end,
+	},
+	{
+		name = "validation rejects bad skill data",
+		run = function()
+			local bad = {
+				function(p) p.classChosen = "yes" end,
+				function(p) p.skillPoints = -1 end,
+				function(p) p.skillPoints = 0.5 end,
+				function(p) p.skills = { nope = 1 } end,
+				function(p) p.skills = { blade_sweep = 0 } end,
+				function(p) p.skills = { blade_sweep = 99 } end,
+			}
+			for i, breakIt in bad do
+				local p: any = ProfileRules.New(1, "blade")
+				breakIt(p)
+				if ProfileRules.Validate(p) then
+					return false, "case " .. i
+				end
+			end
+			local good = ProfileRules.New(1, "blade")
+			good.skills = { blade_sweep = 3 }
+			return ProfileRules.Validate(good), nil
 		end,
 	},
 }

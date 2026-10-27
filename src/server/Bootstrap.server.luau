@@ -75,7 +75,7 @@ EncounterService.Init({
 	Rewards = RewardService,
 	Quests = QuestService,
 })
-ClassService.Init({ Network = NetworkService, Profiles = ProfileService, PlayerState = PlayerStateService, Quests = QuestService })
+ClassService.Init({ Network = NetworkService, Profiles = ProfileService, PlayerState = PlayerStateService })
 NpcService.Init({ Quests = QuestService, PlayerState = PlayerStateService, Seals = SealService, Classes = ClassService })
 
 SceneService.Start() -- courtyard + Mistwood + village

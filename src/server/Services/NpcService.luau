@@ -99,7 +99,7 @@ local function buildNpc(parent: Instance, npc: Npcs.NpcDef): Model
 	m:SetAttribute("NpcId", npc.id)
 	CollectionService:AddTag(m, NpcService.NpcTag)
 
-	local action = if npc.id == SealRules.StationNpcId then "ผนึกดาบ" elseif npc.id == Classes.StationNpcId then "เลือกอาชีพ" else "คุย"
+	local action = if npc.id == SealRules.StationNpcId then "ผนึกดาบ" elseif npc.id == Classes.StationNpcId then "อาชีพ" else "คุย"
 	local p = prompt(head, action, npc.displayNameTH, npc.talkRangeStuds)
 	p.Triggered:Connect(function(player)
 		if allow(player) and quests.InRange(player, npc, 2) then

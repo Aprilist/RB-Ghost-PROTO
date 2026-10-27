@@ -11,6 +11,7 @@ local Items = require(Definitions.Items)
 local Progression = require(Definitions.Progression)
 local Project = require(Definitions.Project)
 local Seals = require(Definitions.Seals)
+local Skills = require(Definitions.Skills)
 
 export type ItemInstance = {
 	definitionId: string,
@@ -39,6 +40,11 @@ export type ProfileV1 = {
 	quests: { [string]: QuestRecord },
 	checkpointId: string,
 	tutorialCompleted: boolean,
+	-- v2 (M4): the class is picked once and then locked; skill points come
+	-- from level-ups; skills maps skill id → learned rank.
+	classChosen: boolean,
+	skillPoints: number,
+	skills: { [string]: number },
 }
 
 export type Currency = "coins" | "essence"
@@ -71,8 +77,14 @@ function ProfileRules.New(userId: number, classId: string): ProfileV1
 		quests = {},
 		checkpointId = ProfileRules.StartingCheckpointId,
 		tutorialCompleted = false,
+		classChosen = false,
+		skillPoints = 0,
+		skills = {},
 	}
 end
+
+ProfileRules.MaxSkillPoints = 1000
+ProfileRules.MaxSkillRank = 20
 
 -- EXP needed to leave `level`, or nil at the cap.
 function ProfileRules.XpToNext(level: number): number?
@@ -103,6 +115,7 @@ function ProfileRules.AddXp(profile: ProfileV1, amount: number): number
 		need = ProfileRules.XpToNext(profile.level)
 	end
 	profile.xp = if need == nil then 0 else xp
+	profile.skillPoints += gained * Progression.SkillPointsPerLevel
 	return gained
 end
 
@@ -166,6 +179,17 @@ function ProfileRules.Validate(profile: ProfileV1): (boolean, string?)
 	if not equipped or Items[equipped.definitionId].slot ~= "weapon" then
 		return false, "equippedWeaponId"
 	end
+	if type(profile.classChosen) ~= "boolean" then
+		return false, "classChosen"
+	end
+	if not finiteInRange(profile.skillPoints, 0, ProfileRules.MaxSkillPoints) then
+		return false, "skillPoints"
+	end
+	for skillId, rank in profile.skills do
+		if Skills[skillId] == nil or not finiteInRange(rank, 1, ProfileRules.MaxSkillRank) then
+			return false, "skills." .. tostring(skillId)
+		end
+	end
 	for questId, quest in profile.quests do
 		if quest.status ~= "active" and quest.status ~= "ready" and quest.status ~= "claimed" then
 			return false, "quests." .. questId
@@ -188,6 +212,7 @@ function ProfileRules.Clone(profile: ProfileV1): ProfileV1
 	for id, quest in profile.quests do
 		copy.quests[id] = table.clone(quest)
 	end
+	copy.skills = table.clone(profile.skills)
 	return copy
 end
 

@@ -31,6 +31,7 @@ export type ResultCode =
 	| "ALREADY_CLAIMED"
 	| "ALREADY_SEALED"
 	| "CAP_REACHED"
+	| "CLASS_LOCKED" -- M4: the class was already picked and cannot change
 	| "INTERNAL_ERROR"
 
 export type ReadyPayload = {}
@@ -64,6 +65,9 @@ export type PublicQuestRecord = { status: "active" | "ready" | "claimed", progre
 
 export type PublicOwnProfile = {
 	classId: string,
+	-- M4: false until the one-time class pick; the client shows the class menu.
+	classChosen: boolean,
+	skillPoints: number,
 	level: number,
 	xp: number,
 	xpToNext: number?,

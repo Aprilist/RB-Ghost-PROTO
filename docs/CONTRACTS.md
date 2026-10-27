@@ -16,11 +16,13 @@ stable IDs เป็น lowercase snake_case ไม่ใช้ชื่อภ�
 
 `Definitions/Project.luau` เก็บ defaults ที่มีแล้ว ส่วน catalog ศัตรู/สกิล/เควสต์จะเพิ่มใน CD-01/CD-04 โดยอิงเอกสาร Claude; ยังไม่สร้าง data runtime ซ้ำสองแห่ง
 
-ProfileV1 (persistent): schemaVersion, revision, userId, classId, level, xp, coins, essence, inventory, equippedWeaponId, quests, checkpointId, tutorialCompleted
+ProfileV1 (persistent, schemaVersion 2): schemaVersion, revision, userId, classId, level, xp, coins, essence, inventory, equippedWeaponId, quests, checkpointId, tutorialCompleted, classChosen, skillPoints, skills
+
+- v2 (M4): `classChosen` false จนกว่าจะเลือกอาชีพครั้งเดียว; `skillPoints` 0–1000 ได้ 2 ต่อเลเวลอัป; `skills` เป็น map skillId → ระดับ 1–20 · migration v1→v2 ตั้ง classChosen = false, skillPoints = (level−1)×2, skills = {} · PublicOwnProfile ส่ง classChosen และ skillPoints
 
 - inventory เป็น map ของ unique itemInstanceId → {definitionId, upgradeLevel, sealId?}; equippedWeaponId อ้าง instance ID
 - quests เป็น map ของ questId → {status, progress}; status = active/ready/claimed
-- ทุก number ต้อง finite และอยู่ใน range; level 1–10, coins/essence 0–1,000,000; overflow ไม่ grant แบบเงียบ
+- ทุก number ต้อง finite และอยู่ใน range; level 1–20 (Director 28 ต.ค. 2026), coins/essence 0–1,000,000; overflow ไม่ grant แบบเงียบ
 - xp เป็น EXP ภายในเลเวลปัจจุบัน ใช้ curve หักทีละขั้นเมื่อเพิ่มเลเวล ที่ cap คง xp = 0
 - revision ใช้เพิ่มทุก authoritative mutation ไม่ใช่ schemaVersion
 - session metadata/fencing อยู่ใน record envelope ฝั่ง server ไม่ส่ง client
@@ -59,9 +61,9 @@ requestId เป็น string จำกัด 64 bytes; payload ห้ามส�
 | transform | {} | gauge = 100, not active, alive | 1/sec burst 2 |
 | apply_seal | {itemInstanceId, sealId} | ownership, shrine distance, essence | 2/sec burst 2 |
 | claim_quest | {questId} | ready; never previously claimed | 2/sec burst 2 |
-| choose_class | {classId} | class มีอยู่และเปิดแล้ว (`NOT_OWNED` ถ้ายังไม่เปิด), alive, อยู่ในระยะครูฝึก `npc_trainer`; เปลี่ยน `profile.classId` ผ่าน Mutate ฟรีและซ้ำได้ (M4) | 2/sec burst 2 |
+| choose_class | {classId} | class มีอยู่และเปิดแล้ว (`NOT_OWNED` ถ้ายังไม่เปิด), alive, `classChosen` ต้องเป็น false ไม่งั้น `CLASS_LOCKED`; ตั้ง classId + classChosen ผ่าน Mutate ครั้งเดียว ใช้ได้ทุกที่ (M4, Director 28 ต.ค. 2026: เลือกแล้วเปลี่ยนไม่ได้) | 2/sec burst 2 |
 
-ActionResult codes: OK, NOT_READY, INVALID_PAYLOAD, RATE_LIMITED, COOLDOWN, DEAD, OUT_OF_RANGE, NOT_OWNED, INSUFFICIENT_ESSENCE, QUEST_NOT_READY, ALREADY_CLAIMED, CAP_REACHED, INTERNAL_ERROR
+ActionResult codes: OK, NOT_READY, INVALID_PAYLOAD, RATE_LIMITED, COOLDOWN, DEAD, OUT_OF_RANGE, NOT_OWNED, INSUFFICIENT_ESSENCE, QUEST_NOT_READY, ALREADY_CLAIMED, ALREADY_SEALED, CAP_REACHED, CLASS_LOCKED, INTERNAL_ERROR
 
 Direction contract: รับเฉพาะ Vector3 ที่ finite ทุกแกน, abs(Y) <= 0.01 และ magnitude อยู่ใน [0.99, 1.01] จากนั้น server project ลง X/Z และ normalize อีกครั้ง ปฏิเสธ zero/NaN/Infinity; ผู้เล่นสามารถหมุนโจมตีได้อิสระใน 3D แต่ server ยังบังคับ cadence, range, height และ line of sight ไม่รับ client origin/target list การช่วยเล็งไม่เพิ่มระยะโจมตี
 

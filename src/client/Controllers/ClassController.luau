@@ -1,9 +1,11 @@
 --!strict
--- Class menu (M4). Opens when the server sends "class_menu" (the player used
--- the trainer's prompt). Lists the classes from Definitions/Classes with the
--- current one marked from the latest snapshot; classes not open yet show
--- "เร็ว ๆ นี้". The only request it sends is choose_class; the server checks
--- range and alive and changes the class. Same greybox style as the seal menu.
+-- Class menu (M4). Director 28 Oct 2026: the class is picked once and never
+-- changed back. The menu opens by itself while the snapshot says
+-- classChosen = false and cannot be closed until a class is picked; picking
+-- needs a second press to confirm. After that the trainer's prompt
+-- ("class_menu") shows the same list, read-only. The only request it sends
+-- is choose_class; the server re-checks everything. Same greybox style as
+-- the seal menu.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,7 +31,7 @@ local GREY = Color3.fromRGB(70, 66, 96)
 local WALK_AWAY_SLACK = 8
 
 local ERRORS: { [string]: string } = {
-	OUT_OF_RANGE = "อยู่ไกลเกินไป เดินเข้าไปใกล้ครูฝึกอีกนิด",
+	CLASS_LOCKED = "เลือกอาชีพไปแล้ว เปลี่ยนไม่ได้",
 	DEAD = "รอเกิดใหม่ก่อน",
 	NOT_OWNED = "อาชีพนี้ยังไม่เปิด",
 	NOT_READY = "ข้อมูลตัวละครยังไม่พร้อม",
@@ -42,9 +44,17 @@ local network: Network
 local frame: Frame
 local titleLabel: TextLabel
 local messageLabel: TextLabel
+local closeButton: TextButton
 local rows: { [string]: { button: TextButton, state: TextLabel } } = {}
 local openNpcId: string? = nil
 local pending: string? = nil
+-- The class the player pressed once and must press again to confirm.
+local confirming: string? = nil
+
+local function chosen(): boolean?
+	local snapshot = network.GetSnapshot()
+	return snapshot and snapshot.profile.classChosen
+end
 
 local function make(className: string, parent: Instance, props: { [string]: any }): any
 	local inst = Instance.new(className)
@@ -74,12 +84,14 @@ end
 
 local function refresh()
 	local snapshot = network.GetSnapshot()
+	local locked = snapshot ~= nil and snapshot.profile.classChosen
 	local current = snapshot and snapshot.profile.classId
+	closeButton.Visible = locked
 	for classId, row in rows do
 		local def = Classes.Get(classId) :: Classes.ClassDef
-		if classId == current then
-			row.state.Text = "อาชีพปัจจุบัน"
-			row.button.Text = "ใช้อยู่"
+		if locked then
+			row.state.Text = if classId == current then "อาชีพของคุณ" else "เลือกอาชีพแล้ว เปลี่ยนไม่ได้"
+			row.button.Text = if classId == current then "อาชีพนี้" else "—"
 			row.button.BackgroundColor3 = GREY
 			row.button.Active = false
 		elseif not def.available then
@@ -88,8 +100,8 @@ local function refresh()
 			row.button.BackgroundColor3 = GREY
 			row.button.Active = false
 		else
-			row.state.Text = "เปลี่ยนได้ฟรี"
-			row.button.Text = if pending == classId then "..." else "เลือก"
+			row.state.Text = "เลือกได้ครั้งเดียว"
+			row.button.Text = if pending == classId then "..." elseif confirming == classId then "ยืนยัน" else "เลือก"
 			row.button.BackgroundColor3 = GREEN
 			row.button.Active = pending == nil
 		end
@@ -97,21 +109,42 @@ local function refresh()
 end
 
 local function close()
+	if not chosen() then
+		return -- must pick first
+	end
 	frame.Visible = false
 	openNpcId = nil
 	pending = nil
+	confirming = nil
 end
 
 local function onChoose(classId: string)
 	local def = Classes.Get(classId)
-	local snapshot = network.GetSnapshot()
-	if pending or not def or not def.available or not snapshot or snapshot.profile.classId == classId then
+	if pending or chosen() ~= false or not def or not def.available then
 		return
 	end
+	if confirming ~= classId then
+		-- First press: say it is final and wait for a second press.
+		confirming = classId
+		messageLabel.Text = "เป็น" .. def.displayNameTH .. "แล้วจะเปลี่ยนอาชีพไม่ได้อีก กด \"ยืนยัน\" เพื่อเลือก"
+		refresh()
+		return
+	end
+	confirming = nil
 	pending = classId
 	messageLabel.Text = ""
 	refresh()
 	network.Send("choose_class", { classId = classId })
+end
+
+local function open(title: string, npcId: string?)
+	openNpcId = npcId
+	pending = nil
+	confirming = nil
+	titleLabel.Text = title
+	messageLabel.Text = ""
+	refresh()
+	frame.Visible = true
 end
 
 local function onResult(result: Contracts.ActionResult, action: string)
@@ -231,7 +264,7 @@ function ClassController.Start(deps: Network)
 
 	messageLabel = text(frame, { LayoutOrder = 10, Size = UDim2.new(1, 0, 0, 20), TextSize = 15, TextColor3 = AMBER })
 	local closeRow = make("Frame", frame, { LayoutOrder = 11, Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1 })
-	local closeButton = make("TextButton", closeRow, {
+	closeButton = make("TextButton", closeRow, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.fromScale(1, 0),
 		Size = UDim2.fromOffset(120, 34),
@@ -245,15 +278,12 @@ function ClassController.Start(deps: Network)
 	closeButton.Activated:Connect(close)
 
 	network.OnClassMenu(function(event)
-		openNpcId = event.npcId
-		pending = nil
-		titleLabel.Text = event.speakerTH .. " — เลือกอาชีพ"
-		messageLabel.Text = ""
-		refresh()
-		frame.Visible = true
+		open(event.speakerTH .. " — อาชีพ", event.npcId)
 	end)
-	network.OnSnapshot(function()
-		if frame.Visible then
+	network.OnSnapshot(function(snapshot)
+		if not snapshot.profile.classChosen and not frame.Visible then
+			open("เลือกอาชีพของคุณ", nil)
+		elseif frame.Visible then
 			refresh()
 		end
 	end)

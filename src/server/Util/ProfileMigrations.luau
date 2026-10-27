@@ -5,13 +5,25 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Progression = require(ReplicatedStorage.Shared.Definitions.Progression)
 local Project = require(ReplicatedStorage.Shared.Definitions.Project)
 local ProfileRules = require(script.Parent.ProfileRules)
 
 local ProfileMigrations = {}
 
 -- STEPS[n] upgrades a version-n profile in place to version n+1.
-local STEPS: { [number]: (any) -> () } = {}
+local STEPS: { [number]: (any) -> () } = {
+	-- v2 (M4): one-time class pick and skill points. Earlier saves never got
+	-- to pick (everyone started as samurai), so they pick once now; points
+	-- are what their level-ups would have given.
+	[1] = function(p)
+		p.classChosen = false
+		p.skillPoints = if type(p.level) == "number" then math.max(0, math.floor(p.level) - 1) * Progression.SkillPointsPerLevel else 0
+		p.skills = {}
+	end,
+}
+
+ProfileMigrations.Steps = STEPS
 
 -- Runs steps on `profile` (in place) up to `target`. Exposed with explicit
 -- steps/target so tests can exercise a chain before a real v2 exists.

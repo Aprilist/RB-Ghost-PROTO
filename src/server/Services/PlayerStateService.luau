@@ -105,6 +105,8 @@ function PlayerStateService.Commit(player: Player)
 		revision = state.revision,
 		profile = {
 			classId = profile.classId,
+			classChosen = profile.classChosen,
+			skillPoints = profile.skillPoints,
 			level = profile.level,
 			xp = profile.xp,
 			xpToNext = ProfileRules.XpToNext(profile.level),
