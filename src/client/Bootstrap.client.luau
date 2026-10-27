@@ -1,5 +1,5 @@
 --!strict
--- Client entry (P1 + M2-D quest UI + M2-E seal menu). Explicit wiring of controllers; no gameplay authority here.
+-- Client entry (P1 + M2-D quest UI + M2-E seal menu + M2-F boss bar). Explicit wiring of controllers; no gameplay authority here.
 
 local Controllers = script.Parent.Controllers
 
@@ -12,6 +12,7 @@ local PrototypeBannerController = require(Controllers.PrototypeBannerController)
 local HUDController = require(Controllers.HUDController)
 local QuestController = require(Controllers.QuestController)
 local SealController = require(Controllers.SealController)
+local BossController = require(Controllers.BossController)
 
 PrototypeBannerController.Start()
 CameraController.Start()
@@ -26,6 +27,7 @@ CombatController.Start()
 HUDController.Start(NetworkClient)
 QuestController.Start(NetworkClient)
 SealController.Start(NetworkClient)
+BossController.Start(NetworkClient)
 
 if not NetworkClient.Start() then
 	PrototypeBannerController.ShowAction("เชื่อม server ไม่ได้ ลองออกแล้วเข้าใหม่")

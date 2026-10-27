@@ -33,7 +33,7 @@ type Profiles = {
 	Mutate: (Player, (ProfileRules.ProfileV1) -> ()) -> boolean,
 }
 
-type Defeat = { enemyId: string, definitionId: string, position: Vector3, contributors: { number } }
+type Defeat = { enemyId: string, definitionId: string, position: Vector3, contributors: { number }, noReward: boolean }
 
 type Enemies = {
 	OnDefeated: ((Defeat) -> ()) -> (),
@@ -101,12 +101,45 @@ local function grant(player: Player, defeat: Defeat, enemyZoneId: string?)
 	end
 end
 
+-- A fixed reward decided elsewhere (the boss encounter, M2-F): pays EXP,
+-- coins and essence once per `key` + player through the same Mutate path.
+-- The caller has already checked who is eligible. Returns whether it paid.
+function RewardService.GrantFixed(player: Player, key: string, xp: number, coins: number, essence: number): boolean
+	local ledgerKey = key .. ":" .. player.UserId
+	if ledger[ledgerKey] then
+		return false
+	end
+	ledger[ledgerKey] = true
+	local levelsGained = 0
+	local capped = false
+	local committed = profiles.Mutate(player, function(profile)
+		levelsGained = ProfileRules.AddXp(profile, xp)
+		local _, coinsCapped = ProfileRules.AddCurrency(profile, "coins", coins)
+		local _, essenceCapped = ProfileRules.AddCurrency(profile, "essence", essence)
+		capped = coinsCapped or essenceCapped
+	end)
+	if not committed then
+		return false
+	end
+	if capped then
+		warn("[RewardService] currency cap reached for", player.UserId)
+	end
+	local root = playerState.GetRoot(player)
+	if root and levelsGained > 0 then
+		network.EmitFx("level_up", root.Position, player.UserId, nil)
+	end
+	return true
+end
+
 -- Hears each reward actually granted: (player, enemy definition id).
 function RewardService.OnGranted(callback: (Player, string) -> ())
 	table.insert(grantedListeners, callback)
 end
 
 local function onDefeated(defeat: Defeat)
+	if defeat.noReward then
+		return -- a boss helper (M2-F): nothing to farm
+	end
 	local enemyZoneId = zones.ZoneAt(defeat.position)
 	for _, userId in defeat.contributors do
 		local player = Players:GetPlayerByUserId(userId)

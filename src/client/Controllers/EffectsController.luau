@@ -41,6 +41,7 @@ local TELEGRAPH_PITCH: { [string]: number } = {
 	hitodama = 1.15,
 	kodama = 0.9,
 	karakasa = 0.5,
+	extinguished_keeper = 0.4,
 }
 
 local EffectsController = {}

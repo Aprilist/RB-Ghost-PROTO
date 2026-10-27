@@ -3,9 +3,10 @@
 -- docs/CONTRACTS.md, plus two proposed in handoff/M2D_CONTRACT_PROPOSALS.md:
 -- `giverNpcId` (who starts it and pays it out, Definitions/Npcs) and
 -- `objectiveTH` (one-line tracker text). Story beats follow GAME_DESIGN v0.2;
--- dialogue is placeholder for Director review. `draft = true`: the objective
--- needs a later batch (defeat_boss = M2-F), so the quest can be taken but not
--- finished yet. apply_seal (q04) is live since M2-E: the seal station is the smith.
+-- dialogue is placeholder for Director review. `draft = true` marks a quest
+-- whose objective needs a batch that has not landed; none are draft now:
+-- apply_seal (q04) is live since M2-E (the seal station is the smith) and
+-- defeat_boss (q05) since M2-F (EncounterService pays and records it).
 
 export type ObjectiveType = "talk" | "defeat" | "collect" | "apply_seal" | "defeat_boss"
 
@@ -110,8 +111,8 @@ local Quests: { [string]: QuestDef } = {
 		dialogueComplete = "โคมดวงสุดท้ายกลับมาสว่างแล้ว",
 		repeatable = false,
 		giverNpcId = "npc_shrine_keeper",
-		objectiveTH = "ปราบผู้เฝ้าโคมดับที่ลานศาลเจ้า (บอสยังไม่เปิด)",
-		draft = true,
+		objectiveTH = "ปราบผู้เฝ้าโคมดับที่ลานศาลเจ้า (ปลายป่าม่านหมอก)",
+		draft = false,
 	},
 }
 

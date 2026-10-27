@@ -10,6 +10,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Definitions = ReplicatedStorage.Shared.Definitions
+local Bosses = require(Definitions.Bosses)
 local Enemies = require(Definitions.Enemies)
 local Npcs = require(Definitions.Npcs)
 local Prototype = require(Definitions.Prototype)
@@ -61,8 +62,8 @@ local cases: { Case } = {
 					end
 				elseif t == "collect" and (q.targetId ~= "veil_trace" or #M.veilTraces < q.targetCount) then
 					return false, id .. " collect target/count"
-				elseif t == "defeat_boss" and not q.draft then
-					return false, id .. " needs a later batch, must stay draft"
+				elseif t == "defeat_boss" and Bosses[q.targetId] == nil then
+					return false, id .. " boss target"
 				elseif t == "apply_seal" and Npcs[SealRules.StationNpcId] == nil then
 					return false, id .. " seal station NPC"
 				end

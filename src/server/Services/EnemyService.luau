@@ -45,6 +45,8 @@ export type Defeat = {
 	definitionId: string, -- catalog ID (Definitions/Enemies)
 	position: Vector3,
 	contributors: { number },
+	-- M2-F: helpers a boss summons pay no reward and never respawn.
+	noReward: boolean,
 }
 
 type Network = {
@@ -59,6 +61,8 @@ type PlayerState = {
 
 local DEFAULT_TYPE = "lantern_wisp"
 local GROUP_SPACING_STUDS = 3
+-- SpawnId of enemies a boss summoned (SpawnAdd): no reward, no respawn.
+local ADD_SPAWN_ID = "boss_add"
 
 local EnemyService = {}
 
@@ -175,10 +179,10 @@ local function setState(enemy: Enemy, state: EnemyState, duration: number)
 	end
 end
 
-local function spawnAt(spawnId: string, ground: Vector3, def: EnemyDef)
+local function spawnAt(spawnId: string, ground: Vector3, def: EnemyDef): string?
 	local folder = runtimeFolder()
 	if not folder then
-		return
+		return nil
 	end
 	runtimeCounter += 1
 	local id = def.id .. "#" .. runtimeCounter
@@ -215,6 +219,7 @@ local function spawnAt(spawnId: string, ground: Vector3, def: EnemyDef)
 	}
 	enemies[id] = enemy
 	setState(enemy, "idle", 0)
+	return id
 end
 
 local function aliveCount(definitionId: string): number
@@ -238,7 +243,13 @@ local function die(enemy: Enemy, spawnId: string)
 	for userId in enemy.contributors do
 		table.insert(contributors, userId)
 	end
-	local defeat: Defeat = { enemyId = enemy.id, definitionId = def.id, position = position, contributors = contributors }
+	local defeat: Defeat = {
+		enemyId = enemy.id,
+		definitionId = def.id,
+		position = position,
+		contributors = contributors,
+		noReward = spawnId == ADD_SPAWN_ID,
+	}
 	for _, callback in defeatedListeners do
 		task.spawn(callback, defeat)
 	end
@@ -248,11 +259,36 @@ local function die(enemy: Enemy, spawnId: string)
 		enemy.model:Destroy()
 		enemies[enemy.id] = nil
 	end)
+	if spawnId == ADD_SPAWN_ID then
+		return
+	end
 	task.delay(def.respawnSec, function()
 		if aliveCount(def.id) < def.tuning.maxAlive then
 			spawnAt(spawnId, enemy.spawnPoint, def)
 		end
 	end)
+end
+
+-- A boss's helper: a normal enemy of `definitionId` on the ground at `ground`
+-- that pays no reward and does not respawn. Returns its runtime id, or nil
+-- when the id is unknown/draft or the world is not built.
+function EnemyService.SpawnAdd(definitionId: string, ground: Vector3): string?
+	local def = Enemies[definitionId]
+	if not def or def.draft or not Models.Has(definitionId) then
+		return nil
+	end
+	return spawnAt(ADD_SPAWN_ID, ground, def)
+end
+
+-- Removes an enemy at once with no defeat, reward or respawn (boss reset).
+function EnemyService.Despawn(enemyId: string)
+	local enemy = enemies[enemyId]
+	if not enemy then
+		return
+	end
+	enemy.state = "dead"
+	enemies[enemyId] = nil
+	enemy.model:Destroy()
 end
 
 -- Returns true when damage applied. Unknown or dead enemies are ignored.

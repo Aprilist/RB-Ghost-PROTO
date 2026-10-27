@@ -61,6 +61,14 @@ local VisualPalette = {
 	WagasaDark = Color3.fromRGB(70, 36, 58),
 	KarakasaLeg = Color3.fromRGB(196, 170, 140),
 
+	-- M2-F boss (the Extinguished Keeper): dark indigo robe that reddens while
+	-- it winds up, a dim half-dead lantern that flares, cracked white mask.
+	BossRobe = Color3.fromRGB(34, 30, 56),
+	BossRobeAngry = Color3.fromRGB(120, 44, 52),
+	BossRobeOpen = Color3.fromRGB(88, 110, 170),
+	BossLanternDim = Color3.fromRGB(150, 128, 96),
+	BossCrack = Color3.fromRGB(30, 24, 34),
+
 	-- Guardian mask
 	MaskWhite = Color3.fromRGB(236, 238, 244),
 }

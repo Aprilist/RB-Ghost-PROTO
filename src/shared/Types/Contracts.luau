@@ -132,7 +132,25 @@ export type SealMenuEvent = {
 	speakerTH: string,
 }
 
-export type StateEvent = SnapshotEvent | CombatFxEvent | DialogueEvent | NoticeEvent | SealMenuEvent
+-- Boss encounter state for the players in (or just out of) the arena (M2-F).
+-- `kind = "encounter"` is in docs/CONTRACTS.md; `joined` is the proposed
+-- addition (handoff/M2F_CONTRACT_PROPOSALS.md): false when this player is not
+-- part of the fight (arrived after the lock, or died/left it).
+--   open      endsAt = when the fight locks (server clock)
+--   fighting  the boss is up; HP and open-window state are on the boss model
+--   won       the boss is down
+--   reset     the fight was abandoned; the boss is back at full HP
+export type EncounterState = "open" | "fighting" | "won" | "reset"
+
+export type EncounterEvent = {
+	kind: "encounter",
+	encounterId: string,
+	state: EncounterState,
+	endsAt: number?,
+	joined: boolean,
+}
+
+export type StateEvent = SnapshotEvent | CombatFxEvent | DialogueEvent | NoticeEvent | SealMenuEvent | EncounterEvent
 
 return {
 	RemoteFolderName = "SpiritWardRemotes",
