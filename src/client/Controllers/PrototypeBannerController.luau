@@ -12,7 +12,9 @@ local PrototypeBannerController = {}
 local actionLabel: TextLabel? = nil
 local lastShown = 0
 
-function PrototypeBannerController.ShowAction(text: string)
+-- sticky keeps the line up (used for the can't-connect message, which must
+-- stay readable since it is the player's only way out).
+function PrototypeBannerController.ShowAction(text: string, sticky: boolean?)
 	local label = actionLabel
 	if not label then
 		return
@@ -20,6 +22,9 @@ function PrototypeBannerController.ShowAction(text: string)
 	label.Text = text
 	label.Visible = true
 	lastShown += 1
+	if sticky then
+		return
+	end
 	local shown = lastShown
 	task.delay(1.2, function()
 		if shown == lastShown then

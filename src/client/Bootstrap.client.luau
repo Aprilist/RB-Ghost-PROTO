@@ -30,7 +30,7 @@ SealController.Start(NetworkClient)
 BossController.Start(NetworkClient)
 
 if not NetworkClient.Start() then
-	PrototypeBannerController.ShowAction("เชื่อม server ไม่ได้ ลองออกแล้วเข้าใหม่")
+	PrototypeBannerController.ShowAction("เชื่อม server ไม่ได้ ลองออกแล้วเข้าใหม่", true)
 	warn("[SpiritWard] Could not reach server remotes or ready failed.")
 	return
 end

@@ -24,6 +24,7 @@ local AMBER = Color3.fromRGB(255, 196, 120)
 local OPEN_BLUE = Color3.fromRGB(150, 190, 255)
 local HP_ORANGE = Color3.fromRGB(255, 170, 90)
 local RESULT_SEC = 4
+local COMPACT_HEIGHT = 500
 
 local BossController = {}
 
@@ -133,6 +134,19 @@ function BossController.Start(deps: Network)
 		Visible = false,
 	})
 	make("UISizeConstraint", frame, { MaxSize = Vector2.new(420, math.huge) })
+	-- On phone-height screens 98px lands on the horizon band where the boss's
+	-- telegraphs project (M2-G touch run), so move into the free middle of the
+	-- top bar, clear of the Roblox buttons at the left.
+	local camera = workspace.CurrentCamera
+	local function layout()
+		local vp = camera.ViewportSize
+		local compact = vp.Y < COMPACT_HEIGHT
+		gui.IgnoreGuiInset = compact
+		frame.Position = UDim2.new(0.5, 0, 0, if compact then 4 else 98)
+		frame.Size = UDim2.fromOffset(if compact then math.max(240, vp.X - 340) else 420, 0)
+	end
+	layout()
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(layout)
 	make("UICorner", frame, { CornerRadius = UDim.new(0, 8) })
 	make("UIPadding", frame, {
 		PaddingLeft = UDim.new(0, 12),

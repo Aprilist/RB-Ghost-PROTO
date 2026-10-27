@@ -25,13 +25,13 @@
 
 ## M2
 
-- [ ] ผู้เล่นใหม่ทำ 5 quests จนจบบอสได้โดยไม่ใช้ command
+- [x] ผู้เล่นใหม่ทำ 5 quests จนจบบอสได้โดยไม่ใช้ command (Director เล่นจบ 27 ต.ค. 2026; ผลใน `docs/qa/M2G_ACCEPTANCE.md`)
 - [ ] seal 2 แบบมีผลต่างกันและแสดงต้นทุนก่อนยืนยัน
 - [ ] essence ไม่ติดลบ; duplicate request ไม่หักหรือ grant ซ้ำ
-- [ ] quest one-time claim ซ้ำไม่ได้; prerequisites ทำงาน
+- [x] quest one-time claim ซ้ำไม่ได้; prerequisites ทำงาน (ยิง claim_quest ซ้ำจาก client ผ่าน Studio MCP 27 ต.ค. 2026; ผลใน `docs/qa/M2G_ACCEPTANCE.md`)
 - [ ] boss 1/2/8 participants; all-dead reset; late join กติกาถูกต้อง
 - [ ] รางวัลผู้ตาย/ออกพื้นที่/ทำ damage ต่ำกว่าเกณฑ์ตรง contract
-- [ ] HUD จอ desktop และ touch ไม่บังท่าเตือน; loading/error มีทางออก
+- [x] HUD จอ desktop และ touch ไม่บังท่าเตือน; loading/error มีทางออก (Studio + Device Simulator ผ่าน MCP 27 ต.ค. 2026 ยังไม่ใช่มือถือจริง; ผลใน `docs/qa/M2G_ACCEPTANCE.md`; ผ่านสำหรับ HUD ชุด M2 เท่านั้น จัด layout จริงตอนระบบครบ)
 
 ## M3
 
