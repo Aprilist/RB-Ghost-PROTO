@@ -4,6 +4,7 @@
 -- known at rank 1 for free, the rest are learned with skill points once the
 -- level allows. Each rank above 1 adds RankStep to damage (and a little to
 -- buff time and heal). SP: max grows with level, regenerates over time.
+-- Passives (M4-E) are learned the same way and add to a stat (Bonus).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,6 +36,12 @@ function SkillRules.Slot(classId: string, skillId: string): number?
 	return class and table.find(class.skillIds, skillId)
 end
 
+-- True for the class's hotbar skills and passives (what learn_skill accepts).
+function SkillRules.Owns(classId: string, skillId: string): boolean
+	local class = Classes.Get(classId)
+	return class ~= nil and (table.find(class.skillIds, skillId) ~= nil or table.find(class.passiveIds, skillId) ~= nil)
+end
+
 -- Learned rank (0 = not learned). Slot 1 is always at least rank 1.
 function SkillRules.Rank(profile: SkillProfile, skillId: string): number
 	local learned = profile.skills[skillId] or 0
@@ -58,6 +65,23 @@ end
 
 function SkillRules.HealFraction(skill: Skills.SkillDef, rank: number): number
 	return (skill.healFraction or 0) + 0.03 * (math.max(rank, 1) - 1)
+end
+
+function SkillRules.RootSec(skill: Skills.SkillDef, rank: number): number
+	return (skill.rootSec or 0) + 0.25 * (math.max(rank, 1) - 1)
+end
+
+-- Sum of the class's learned passives for `stat` (0 when none learned).
+function SkillRules.Bonus(profile: SkillProfile, stat: Skills.PassiveStat): number
+	local class = Classes.Get(profile.classId)
+	local total = 0
+	for _, id in if class then class.passiveIds else {} do
+		local skill = Skills[id]
+		if skill.passiveStat == stat then
+			total += (skill.passivePerRank or 0) * (profile.skills[id] or 0)
+		end
+	end
+	return total
 end
 
 function SkillRules.MaxSp(level: number): number
@@ -89,7 +113,7 @@ function SkillRules.Learn(profile: SkillProfile, skillId: string): LearnCode
 	if not profile.classChosen then
 		return "NOT_READY"
 	end
-	if not SkillRules.Slot(profile.classId, skillId) then
+	if not SkillRules.Owns(profile.classId, skillId) then
 		return "NOT_OWNED"
 	end
 	if profile.level < skill.unlockLevel then

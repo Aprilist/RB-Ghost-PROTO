@@ -99,6 +99,7 @@ Client มี local adapter รับ transport เพื่อทำ mock snaps
 Enemy: id, displayNameTH, zoneId, level, maxHp, contact/attackDamage, telegraphSec, recoverSec, attackRangeStuds, detectionRangeStuds, moveSpeedStudsSec, respawnSec, xpReward, coinReward, essenceReward, gaugeReward, behaviorNotes
 
 Skill: id, classId, displayNameTH, cooldownSec, rangeStuds, hitShape, damageMultiplier, windupSec, recoverySec, effectNotes
+(M4 เพิ่ม: arcDeg, widthStuds?, radiusStuds?, buffMult?, buffSec?, healFraction?, unlockLevel, maxRank, spCost; M4-E เพิ่ม: rootSec? = ศัตรูที่โดนเดินและเริ่มท่าใหม่ไม่ได้ (บอสไม่ติด), hitShape "passive" + passiveStat (basicDamagePct | skillDamagePct | maxHpPct | maxSpFlat) + passivePerRank: เรียนด้วย learn_skill แบบเดียวกัน ใช้ cast_skill ไม่ได้ (NOT_OWNED))
 
 Quest: id, titleTH, prerequisiteQuestId?, objectiveType, targetId, targetCount, rewardXp, rewardCoins, rewardEssence, dialogueStart, dialogueComplete, repeatable
 

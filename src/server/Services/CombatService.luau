@@ -45,6 +45,7 @@ type EnemyRecord = { id: string, body: BasePart, bodyRadius: number }
 type Enemies = {
 	GetAlive: () -> { EnemyRecord },
 	Damage: (string, number, Player) -> boolean,
+	Root: (string, number) -> (),
 }
 
 local C = Prototype.Combat
@@ -69,6 +70,12 @@ local profiles: Profiles
 local function kitOf(player: Player): Classes.Kit
 	local profile = profiles.Get(player)
 	return Classes.Kit(if profile then profile.classId else Prototype.ClassId)
+end
+
+-- Buff × learned passive for `stat` (M4-E).
+local function damageMult(player: Player, stat: "basicDamagePct" | "skillDamagePct"): number
+	local profile = profiles.Get(player)
+	return playerState.DamageMult(player) * (1 + (if profile then SkillRules.Bonus(profile, stat) else 0))
 end
 local lastSwing: { [Player]: number } = {}
 
@@ -126,7 +133,7 @@ local function basicAttack(player: Player, payload: { [string]: any }): ResultCo
 
 	local root = playerState.GetRoot(player) :: BasePart
 	local aim = network.ValidateDirection(payload.aimDirection) :: Vector3
-	local mult = playerState.DamageMult(player)
+	local mult = damageMult(player, "basicDamagePct")
 	local hit: { string }
 	if playerState.IsTransformed(player) then
 		-- Guardian form: short wave, longer reach, same hit pipeline.
@@ -187,7 +194,7 @@ local function castSkill(player: Player, payload: { [string]: any }): ResultCode
 	playerState.StartCooldown(player, skill.id, skill.cooldownSec)
 
 	local rank = SkillRules.Rank(profile, skill.id)
-	local damage = SkillRules.Damage(skill, rank) * playerState.DamageMult(player)
+	local damage = SkillRules.Damage(skill, rank) * damageMult(player, "skillDamagePct")
 	local root = playerState.GetRoot(player) :: BasePart
 	local aim = network.ValidateDirection(payload.aimDirection) :: Vector3
 	local fx = "skill:" .. skill.id
@@ -200,7 +207,12 @@ local function castSkill(player: Player, payload: { [string]: any }): ResultCode
 		-- A circle ahead (or on self at range 0), its centre stopped short of walls.
 		local centre = root.Position + aim * Geometry.ClearDistance(root.Position, aim, skill.rangeStuds, 1)
 		network.EmitFx(fx, centre, player.UserId, nil)
-		strike(player, centre, aim, skill.radiusStuds or 6, 360, damage)
+		local hit = strike(player, centre, aim, skill.radiusStuds or 6, 360, damage)
+		if skill.rootSec then
+			for _, id in hit do
+				enemies.Root(id, SkillRules.RootSec(skill, rank))
+			end
+		end
 	elseif skill.hitShape == "bolt" then
 		network.EmitFx(fx, root.Position + aim * (skill.rangeStuds / 2), player.UserId, nil)
 		strike(player, root.Position, aim, skill.rangeStuds, skill.arcDeg, damage, true)

@@ -282,6 +282,15 @@ local function onCharacter(player: Player, character: Model)
 	PlayerStateService.Commit(player)
 end
 
+-- Max HP and SP from level plus learned passives (M4-E).
+local function maxStats(profile: ProfileRules.ProfileV1?): (number, number)
+	if not profile then
+		return ProfileRules.MaxHp(1), SkillRules.MaxSp(1)
+	end
+	local hp = math.floor(ProfileRules.MaxHp(profile.level) * (1 + SkillRules.Bonus(profile, "maxHpPct")) + 0.5)
+	return hp, SkillRules.MaxSp(profile.level) + SkillRules.Bonus(profile, "maxSpFlat")
+end
+
 -- A level-up raises max HP and heals by the same amount, so the bar never
 -- looks emptier after levelling. Every profile change pushes a snapshot.
 local function onProfileChanged(player: Player, profile: ProfileRules.ProfileV1)
@@ -289,7 +298,7 @@ local function onProfileChanged(player: Player, profile: ProfileRules.ProfileV1)
 	if not state then
 		return
 	end
-	local maxHp = ProfileRules.MaxHp(profile.level)
+	local maxHp, maxSp = maxStats(profile)
 	if maxHp ~= state.maxHp then
 		if state.alive then
 			state.hp = math.clamp(state.hp + maxHp - state.maxHp, 1, maxHp)
@@ -302,7 +311,6 @@ local function onProfileChanged(player: Player, profile: ProfileRules.ProfileV1)
 			humanoid.Health = state.hp
 		end
 	end
-	local maxSp = SkillRules.MaxSp(profile.level)
 	if maxSp ~= state.maxSp then
 		state.sp = math.min(maxSp, SkillRules.SpAt(state.sp, state.spAt, state.maxSp, now()) + maxSp - state.maxSp)
 		state.spAt = now()
@@ -314,8 +322,7 @@ end
 local function onPlayer(player: Player)
 	local profile = profiles.Load(player)
 	-- No profile (load failed): stay not-ready so `ready` answers NOT_READY.
-	local maxHp = ProfileRules.MaxHp(if profile then profile.level else 1)
-	local maxSp = SkillRules.MaxSp(if profile then profile.level else 1)
+	local maxHp, maxSp = maxStats(profile)
 	states[player] = {
 		hp = maxHp,
 		maxHp = maxHp,

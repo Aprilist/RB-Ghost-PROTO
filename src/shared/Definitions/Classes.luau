@@ -18,6 +18,8 @@ export type ClassDef = {
 	basicSkillId: string,
 	-- Hotbar skills in key order 1–5 (M4 skill system); [1] is free at rank 1.
 	skillIds: { string },
+	-- Passive skills (M4-E): learned with skill points, never on the hotbar.
+	passiveIds: { string },
 	available: boolean,
 }
 
@@ -45,6 +47,7 @@ Classes.List = table.freeze({
 		descriptionTH = "คาตานะ ประชิด ฟันเป็นวงกว้าง สกิลหนักและบัฟ",
 		basicSkillId = "blade_basic",
 		skillIds = { "blade_sweep", "blade_iai", "blade_whirl", "blade_focus", "blade_cleave" },
+		passiveIds = { "blade_mastery", "blade_iron" },
 		available = true,
 	}),
 	table.freeze({
@@ -53,6 +56,7 @@ Classes.List = table.freeze({
 		descriptionTH = "ดาบสั้น ฟันเร็ว พุ่งเข้าออกไว ปาคุไนได้",
 		basicSkillId = "shade_basic",
 		skillIds = { "shade_step", "shade_kunai", "shade_flurry", "shade_veil", "shade_storm" },
+		passiveIds = { "shade_vital", "shade_breath" },
 		available = true,
 	}),
 	table.freeze({
@@ -61,6 +65,7 @@ Classes.List = table.freeze({
 		descriptionTH = "ยันต์ ตีไกล สกิลพื้นที่ และฮีลตัวเอง",
 		basicSkillId = "talisman_basic",
 		skillIds = { "talisman_seal", "talisman_thunder", "talisman_mend", "talisman_fox", "talisman_aura" },
+		passiveIds = { "talisman_focus", "talisman_ward" },
 		available = true,
 	}),
 }) :: { ClassDef }

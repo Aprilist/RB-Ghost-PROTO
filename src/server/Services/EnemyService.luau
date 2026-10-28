@@ -38,6 +38,8 @@ export type Enemy = {
 	stateUntil: number,
 	plan: Plan?,
 	contributors: { [number]: boolean },
+	rootedUntil: number, -- os.clock(); onmyoji seal (M4-E)
+	sealMark: BasePart?,
 }
 
 export type Defeat = {
@@ -216,6 +218,8 @@ local function spawnAt(spawnId: string, ground: Vector3, def: EnemyDef): string?
 		stateUntil = 0,
 		plan = nil,
 		contributors = {},
+		rootedUntil = 0,
+		sealMark = nil,
 	}
 	enemies[id] = enemy
 	setState(enemy, "idle", 0)
@@ -305,6 +309,38 @@ function EnemyService.Damage(enemyId: string, amount: number, attacker: Player):
 		die(enemy, enemy.model:GetAttribute("SpawnId") :: string)
 	end
 	return true
+end
+
+-- Holds the enemy where it is for `seconds`: it neither moves nor starts an
+-- attack (one already telegraphed still lands). A ring of talisman light on
+-- the ground shows it to everyone. Longer roots replace shorter ones.
+function EnemyService.Root(enemyId: string, seconds: number)
+	local enemy = enemies[enemyId]
+	if not enemy or enemy.state == "dead" or seconds <= 0 then
+		return
+	end
+	local untilAt = math.max(enemy.rootedUntil, os.clock() + seconds)
+	enemy.rootedUntil = untilAt
+	if not enemy.sealMark then
+		local d = enemy.bodyRadius * 2 + 2
+		local part = visualPart(enemy.model, "SealMark", Vector3.new(0.14, d, d), Color3.fromRGB(255, 214, 120), Enum.Material.Neon)
+		part.Shape = Enum.PartType.Cylinder
+		part.CastShadow = false
+		part.Transparency = 0.35
+		local pos = enemy.body.Position
+		part.CFrame = CFrame.new(pos.X, enemy.spawnPoint.Y + 0.16, pos.Z) * UPRIGHT
+		enemy.sealMark = part
+	end
+	enemy.model:SetAttribute("Rooted", true)
+	task.delay(seconds, function()
+		if enemy.sealMark and enemy.rootedUntil <= os.clock() then
+			enemy.sealMark:Destroy()
+			enemy.sealMark = nil
+			if enemy.model.Parent then
+				enemy.model:SetAttribute("Rooted", false)
+			end
+		end
+	end)
 end
 
 function EnemyService.GetAlive(): { Enemy }
@@ -451,6 +487,8 @@ local function tick(dt: number)
 			if now >= enemy.stateUntil then
 				setState(enemy, "idle", 0)
 			end
+		elseif now < enemy.rootedUntil then
+			continue
 		else
 			local _, root, dist = nearestTarget(enemy)
 			if root and dist <= def.attackRangeStuds and Geometry.LineOfSight(enemy.body.Position, root.Position) then

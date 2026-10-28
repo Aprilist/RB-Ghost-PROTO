@@ -196,15 +196,18 @@ local cases: { Case } = {
 				if s.id ~= id or Classes.Get(s.classId) == nil then
 					return false, id
 				end
-				local damaging = s.hitShape ~= "buff" and s.hitShape ~= "heal"
-				local shapeOk = if s.hitShape == "line"
+				local passive = s.hitShape == "passive"
+				local damaging = s.hitShape ~= "buff" and s.hitShape ~= "heal" and not passive
+				local shapeOk = if passive
+					then s.passiveStat ~= nil and positive(s.passivePerRank or 0)
+					elseif s.hitShape == "line"
 					then positive(s.widthStuds or 0) and positive(s.rangeStuds)
 					elseif s.hitShape == "circle" then positive(s.radiusStuds or 0) and s.rangeStuds >= 0
 					elseif s.hitShape == "buff" then (s.buffMult or 0) > 1 and positive(s.buffSec or 0)
 					elseif s.hitShape == "heal" then (s.healFraction or 0) > 0 and (s.healFraction or 0) <= 1
 					else s.arcDeg > 0 and s.arcDeg <= 360 and positive(s.rangeStuds)
 				local rankOk = s.unlockLevel >= 1 and s.maxRank >= 1 and s.spCost >= 0
-				if not (positive(s.cooldownSec) and (not damaging or positive(s.damageMultiplier))) or not shapeOk or not rankOk then
+				if not ((passive or positive(s.cooldownSec)) and (not damaging or positive(s.damageMultiplier))) or not shapeOk or not rankOk then
 					return false, id .. " values"
 				end
 			end

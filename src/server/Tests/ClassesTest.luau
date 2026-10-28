@@ -285,6 +285,42 @@ local skillCases: { Case } = {
 				string.format("max %d/%d", m1, m10)
 		end,
 	},
+	{
+		name = "passives: 2 per class, learned with points from rank 0, never castable, add to their stat",
+		run = function()
+			for _, c in Classes.List do
+				if #c.passiveIds ~= 2 then
+					return false, c.id
+				end
+				for _, id in c.passiveIds do
+					if Skills[id].hitShape ~= "passive" or Skills[id].classId ~= c.id then
+						return false, id
+					end
+				end
+			end
+			local p = chosen("blade", 5, 3)
+			local before = SkillRules.Bonus(p, "basicDamagePct")
+			local a = SkillRules.Learn(p, "blade_mastery")
+			local b = SkillRules.Learn(p, "blade_mastery")
+			local c = SkillRules.Learn(p, "blade_iron")
+			local other = SkillRules.Learn(chosen("blade", 20, 5), "shade_vital")
+			local early = SkillRules.Learn(chosen("blade", 1, 5), "blade_mastery")
+			local ok = before == 0 and a == "OK" and b == "OK" and c == "OK" and other == "NOT_OWNED" and early == "SKILL_LOCKED"
+				and math.abs(SkillRules.Bonus(p, "basicDamagePct") - 0.12) < 1e-9
+				and math.abs(SkillRules.Bonus(p, "maxHpPct") - 0.05) < 1e-9
+				and SkillRules.Bonus(p, "maxSpFlat") == 0
+				and SkillRules.CanCast(p, "blade_mastery") == "NOT_OWNED"
+				and ProfileRules.Validate(p)
+			return ok, table.concat({ a, b, c, other, early }, "/")
+		end,
+	},
+	{
+		name = "seal circle roots, longer with rank",
+		run = function()
+			local seal = Skills.talisman_seal
+			return SkillRules.RootSec(seal, 1) == 2.5 and SkillRules.RootSec(seal, 5) == 3.5 and Skills.talisman_fox.rootSec == nil, nil
+		end,
+	},
 }
 for _, case in skillCases do
 	table.insert(cases, case)

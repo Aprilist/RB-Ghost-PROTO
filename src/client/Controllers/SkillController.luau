@@ -30,6 +30,7 @@ local GREEN = Color3.fromRGB(70, 130, 80)
 local GREY = Color3.fromRGB(70, 66, 96)
 local SLOT_READY = Color3.fromRGB(44, 52, 86)
 local SLOTS = 5
+local PASSIVES = 2 -- window rows under the hotbar skills (Classes passiveIds)
 
 local LEARN_ERRORS: { [string]: string } = {
 	SKILL_LOCKED = "เลเวลยังไม่ถึง",
@@ -47,7 +48,7 @@ local slotButtons: { { button: TextButton, name: TextLabel, state: TextLabel } }
 local window: Frame
 local pointsLabel: TextLabel
 local messageLabel: TextLabel
-local rows: { { name: TextLabel, info: TextLabel, button: TextButton } } = {}
+local rows: { { frame: Frame, name: TextLabel, info: TextLabel, button: TextButton } } = {}
 local pending = false
 
 local function make(className: string, parent: Instance, props: { [string]: any }): any
@@ -79,9 +80,32 @@ local function classSkills(snapshot: Contracts.SnapshotEvent): { string }
 	return Classes.Kit(snapshot.profile.classId).skillIds
 end
 
--- What a damaging skill does at `rank`, for the window.
+-- Window rows: hotbar skills, then passives.
+local function windowSkills(snapshot: Contracts.SnapshotEvent): { string }
+	local ids = table.clone(classSkills(snapshot))
+	local class = Classes.Get(snapshot.profile.classId)
+	for _, id in if class then class.passiveIds else {} do
+		table.insert(ids, id)
+	end
+	return ids
+end
+
+local PASSIVE_TEXT: { [string]: string } = {
+	basicDamagePct = "ดาเมจโจมตีปกติ +%d%%",
+	skillDamagePct = "ดาเมจสกิล +%d%%",
+	maxHpPct = "HP สูงสุด +%d%%",
+	maxSpFlat = "SP สูงสุด +%d",
+}
+
+-- What a skill does at `rank`, for the window.
 local function effectLine(skill: Skills.SkillDef, rank: number): string
-	if skill.hitShape == "buff" then
+	if skill.hitShape == "passive" then
+		local v = (skill.passivePerRank or 0) * rank
+		local pct = skill.passiveStat ~= "maxSpFlat"
+		return string.format(PASSIVE_TEXT[skill.passiveStat or ""] or "%d", math.floor(if pct then v * 100 + 0.5 else v))
+	elseif skill.rootSec then
+		return string.format("ดาเมจ %d · ตรึง %.2f วิ", SkillRules.Damage(skill, rank), SkillRules.RootSec(skill, rank))
+	elseif skill.hitShape == "buff" then
 		return string.format("ดาเมจ ×%.2f นาน %d วิ", skill.buffMult or 1, SkillRules.BuffSec(skill, rank))
 	elseif skill.hitShape == "heal" then
 		return string.format("ฟื้น %d%% HP", math.floor(SkillRules.HealFraction(skill, rank) * 100 + 0.5))
@@ -137,17 +161,21 @@ local function renderWindow()
 	local p = snapshot.profile
 	local class = Classes.Get(p.classId)
 	pointsLabel.Text = string.format("%s · Lv %d · แต้มสกิล %d", if class then class.displayNameTH else p.classId, p.level, p.skillPoints)
-	local ids = classSkills(snapshot)
+	local ids = windowSkills(snapshot)
 	for i, row in rows do
 		local skill = ids[i] and Skills[ids[i]]
+		row.frame.Visible = skill ~= nil
 		if skill then
 			local rank = SkillRules.Rank(p, skill.id)
-			row.name.Text = string.format("%d · %s  (ระดับ %d/%d)", i, skill.displayNameTH, rank, skill.maxRank)
-			local next = if rank >= 1 and rank < skill.maxRank then "  → ระดับถัดไป " .. effectLine(skill, rank + 1) else ""
-			row.info.Text = string.format(
-				"ปลด Lv %d · SP %d · คูลดาวน์ %d วิ · %s%s\n%s",
-				skill.unlockLevel, skill.spCost, skill.cooldownSec, effectLine(skill, math.max(rank, 1)), next, skill.effectNotes
-			)
+			local passive = skill.hitShape == "passive"
+			row.name.Text = string.format("%s · %s  (ระดับ %d/%d)", if passive then "ติดตัว" else tostring(i), skill.displayNameTH, rank, skill.maxRank)
+			local next = if rank < skill.maxRank and (rank >= 1 or passive) then "  → ระดับถัดไป " .. effectLine(skill, rank + 1) else ""
+			row.info.Text = if passive
+				then string.format("ปลด Lv %d · ตอนนี้ %s%s", skill.unlockLevel, if rank > 0 then effectLine(skill, rank) else "ยังไม่ได้เรียน", next)
+				else string.format(
+					"ปลด Lv %d · SP %d · คูลดาวน์ %d วิ · %s%s\n%s",
+					skill.unlockLevel, skill.spCost, skill.cooldownSec, effectLine(skill, math.max(rank, 1)), next, skill.effectNotes
+				)
 			local canLearn = SkillRules.Learn({
 				classId = p.classId,
 				classChosen = p.classChosen,
@@ -174,7 +202,7 @@ end
 
 local function learn(slot: number)
 	local snapshot = network.GetSnapshot()
-	local id = snapshot and classSkills(snapshot)[slot]
+	local id = snapshot and windowSkills(snapshot)[slot]
 	if pending or not id then
 		return
 	end
@@ -257,7 +285,7 @@ function SkillController.Start(deps: { Network: Network, Combat: Combat })
 	make("UIListLayout", window, { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6) })
 	text(window, { LayoutOrder = 0, Size = UDim2.new(1, 0, 0, 22), TextSize = 18, TextColor3 = AMBER, Text = "สกิล" })
 	pointsLabel = text(window, { LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 18), TextSize = 14, TextColor3 = SOFT })
-	for i = 1, SLOTS do
+	for i = 1, SLOTS + PASSIVES do
 		local row = make("Frame", window, {
 			LayoutOrder = 1 + i,
 			Size = UDim2.new(1, 0, 0, 0),
@@ -285,7 +313,7 @@ function SkillController.Start(deps: { Network: Network, Combat: Combat })
 		button.Activated:Connect(function()
 			learn(i)
 		end)
-		rows[i] = { name = name, info = info, button = button }
+		rows[i] = { frame = row, name = name, info = info, button = button }
 	end
 	messageLabel = text(window, { LayoutOrder = 10, Size = UDim2.new(1, 0, 0, 18), TextSize = 14, TextColor3 = AMBER, Text = "" })
 	local closeButton = make("TextButton", window, {

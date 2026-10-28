@@ -9,6 +9,7 @@ type Record = { id: string, body: BasePart, bodyRadius: number }
 type Enemies = {
 	GetAlive: () -> { Record },
 	Damage: (string, number, Player) -> boolean,
+	Root: (string, number) -> (),
 }
 
 type Boss = {
@@ -38,6 +39,13 @@ function TargetService.Damage(id: string, amount: number, attacker: Player): boo
 		return boss.Damage(id, amount, attacker)
 	end
 	return enemies.Damage(id, amount, attacker)
+end
+
+-- Holds a normal enemy in place (onmyoji seal, M4-E). Bosses are immune.
+function TargetService.Root(id: string, seconds: number)
+	if not boss.Owns(id) then
+		enemies.Root(id, seconds)
+	end
 end
 
 function TargetService.Init(deps: { Enemies: Enemies, Boss: Boss })

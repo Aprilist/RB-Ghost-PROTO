@@ -15,6 +15,10 @@ export type HitShape =
 	| "circle" -- every target within radiusStuds of a point rangeStuds ahead (0 = on self)
 	| "buff" -- damage × buffMult for buffSec
 	| "heal" -- heal healFraction of max HP
+	| "passive" -- never cast; each rank adds passivePerRank to passiveStat
+
+-- What a passive raises (SkillRules.Bonus). Pct values are fractions.
+export type PassiveStat = "basicDamagePct" | "skillDamagePct" | "maxHpPct" | "maxSpFlat"
 
 export type SkillDef = {
 	id: string,
@@ -29,6 +33,9 @@ export type SkillDef = {
 	buffMult: number?,
 	buffSec: number?,
 	healFraction: number?,
+	rootSec: number?, -- enemies hit cannot move or start an attack (bosses immune)
+	passiveStat: PassiveStat?,
+	passivePerRank: number?,
 	damageMultiplier: number,
 	windupSec: number,
 	recoverySec: number,
@@ -89,7 +96,8 @@ add({ id = "shade_storm", classId = "shade", displayNameTH = "พายุดา
 
 -- Onmyoji: ranged and area, one heal, one buff.
 add({ id = "talisman_seal", classId = "talisman", displayNameTH = "เขตยันต์ตรึง", unlockLevel = 1, spCost = 15, cooldownSec = 6, rangeStuds = 14, hitShape = "circle", radiusStuds = 8, damageMultiplier = 1.5,
-	effectNotes = "วางวงยันต์ข้างหน้า ทุกตัวในวงโดน (ยังไม่ตรึงจริง)" })
+	rootSec = 2.5,
+	effectNotes = "วางวงยันต์ข้างหน้า ทุกตัวในวงโดนและถูกตรึงอยู่กับที่ (บอสไม่ติด)" })
 add({ id = "talisman_thunder", classId = "talisman", displayNameTH = "ยันต์อัสนี", unlockLevel = 3, spCost = 12, cooldownSec = 5, rangeStuds = 20, hitShape = "sector", arcDeg = 20, damageMultiplier = 1.4,
 	effectNotes = "สายฟ้าแนวยาว โดนทุกตัวในแนวเล็ง" })
 add({ id = "talisman_mend", classId = "talisman", displayNameTH = "ยันต์ฟื้นกาย", unlockLevel = 6, spCost = 25, cooldownSec = 20, hitShape = "heal", healFraction = 0.25,
@@ -98,5 +106,20 @@ add({ id = "talisman_fox", classId = "talisman", displayNameTH = "จิ้ง�
 	effectNotes = "เรียกไฟจิ้งจอกลงวงใหญ่ข้างหน้า" })
 add({ id = "talisman_aura", classId = "talisman", displayNameTH = "ยันต์เสริมพลัง", unlockLevel = 12, spCost = 20, cooldownSec = 25, hitShape = "buff", buffMult = 1.3, buffSec = 8,
 	effectNotes = "ดาเมจทุกท่า +30% ชั่วครู่" })
+
+-- Passives (M4-E): learned with skill points like hotbar skills, never cast,
+-- no SP. Two per class: one for damage, one for staying power.
+add({ id = "blade_mastery", classId = "blade", displayNameTH = "วิถีดาบ", unlockLevel = 2, cooldownSec = 0, hitShape = "passive", passiveStat = "basicDamagePct", passivePerRank = 0.06,
+	effectNotes = "ติดตัว: ดาเมจโจมตีปกติเพิ่มขึ้น" })
+add({ id = "blade_iron", classId = "blade", displayNameTH = "กายเหล็ก", unlockLevel = 5, cooldownSec = 0, hitShape = "passive", passiveStat = "maxHpPct", passivePerRank = 0.05,
+	effectNotes = "ติดตัว: HP สูงสุดเพิ่มขึ้น" })
+add({ id = "shade_vital", classId = "shade", displayNameTH = "จุดตาย", unlockLevel = 2, cooldownSec = 0, hitShape = "passive", passiveStat = "skillDamagePct", passivePerRank = 0.06,
+	effectNotes = "ติดตัว: ดาเมจสกิลเพิ่มขึ้น" })
+add({ id = "shade_breath", classId = "shade", displayNameTH = "ลมปราณเงา", unlockLevel = 5, cooldownSec = 0, hitShape = "passive", passiveStat = "maxSpFlat", passivePerRank = 6,
+	effectNotes = "ติดตัว: SP สูงสุดเพิ่มขึ้น" })
+add({ id = "talisman_focus", classId = "talisman", displayNameTH = "จิตสมาธิ", unlockLevel = 2, cooldownSec = 0, hitShape = "passive", passiveStat = "maxSpFlat", passivePerRank = 8,
+	effectNotes = "ติดตัว: SP สูงสุดเพิ่มขึ้น" })
+add({ id = "talisman_ward", classId = "talisman", displayNameTH = "ยันต์คุ้มกาย", unlockLevel = 5, cooldownSec = 0, hitShape = "passive", passiveStat = "maxHpPct", passivePerRank = 0.05,
+	effectNotes = "ติดตัว: HP สูงสุดเพิ่มขึ้น" })
 
 return table.freeze(Skills)
