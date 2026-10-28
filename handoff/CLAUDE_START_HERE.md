@@ -2,7 +2,33 @@
 
 ทีมคือ Claude + Director (DEC-015) Claude ดูแลทั้ง implementation, spec, contracts, review และ integration
 
-ทำแล้วถึง M3 persistence (branch `m2d-quests-npcs`): ผลอยู่ใน `docs/qa/M3D_ACCEPTANCE.md` และ `docs/qa/M2G_ACCEPTANCE.md` ส่วนที่เหลือต้องใช้ Director (มือถือจริง, 12 คนบน server จริง, บอสหลายคนจนล้ม) งานถัดไปถาม Director
+ทำแล้วถึง M4-E (branch `m2d-quests-npcs`, commit ล่าสุด M4-E):
+
+- M3 persistence: ผลอยู่ใน `docs/qa/M3D_ACCEPTANCE.md` และ `docs/qa/M2G_ACCEPTANCE.md` ส่วนที่เหลือต้องใช้ Director (มือถือจริง, 12 คนบน server จริง, บอสหลายคนจนล้ม)
+- M4 อาชีพ + สกิล (สเปกใน `docs/GAME_DESIGN.md` หัวข้อ "ระบบสกิล"):
+  - สามอาชีพ ซามูไร/นินจา/องเมียวจิ (id blade/shade/talisman) เลือกครั้งเดียวตอนเข้าเกมครั้งแรก เปลี่ยนไม่ได้ เลเวลตัน 20 ได้ 2 แต้มสกิลต่อเลเวล (profile schema v2)
+  - อาชีพละ 5 สกิลบนแถบปุ่ม 1–5 ใช้ SP มีระดับ 1–5 หน้าต่างสกิลกด K
+  - อาชีพละ 2 สกิลติดตัว (passive) เพิ่มดาเมจ/HP/SP
+  - เขตยันต์ตรึงศัตรูทั่วไปได้จริง 2.5 วิ บอสไม่ติด
+- test ใน Studio ผ่าน 162/162 (รันเองตอน Play ดูใน Output)
+
+ต่อบนเครื่องใหม่:
+
+1. `git pull` branch `m2d-quests-npcs`
+2. `.mcp.json` อยู่ใน repo แล้ว ใช้ Roblox Studio MCP ที่ `%LOCALAPPDATA%\Roblox\mcp.bat` ต้องเปิด Studio และเปิดปลั๊กอิน MCP ของ Studio ก่อน
+3. เปิด place `SpiritWard Test` (134965985305218) จาก Roblox ใน Studio (ไฟล์ place ไม่อยู่ใน git)
+4. ไม่มี Rojo: รัน `python tools/studio_sync_server.py` ไว้ แล้วสั่ง body ของ `tools/studio_sync.luau` ใน Edit datamodel ผ่าน MCP โค้ดใน Studio จะตรงกับ repo (เปิด HttpEnabled เฉพาะตอนดึง แล้วคืนค่าทันที ตาม Director)
+5. ถ้า sync แจ้งว่ามีสคริปต์ชื่อซ้ำ ให้ลบตัวเก่าใน Studio ก่อน (เคยเกิดกับ Classes/ClassService)
+
+งานค้าง (ถาม Director ก่อนเลือก):
+
+- เขตยันต์วางวงไกล 14 studs รัศมี 8 จึงไม่โดนศัตรูที่อยู่ชิดตัว (ใกล้กว่าราว 6 studs) ควรปรับ
+- เติมสกิลให้ครบ 8–10 ตัวต่ออาชีพ, การกระเด็น, ผูกปุ่มเอง, อาชีพขั้นสอง, ภาพ/ท่าของแต่ละอาชีพ
+- ปรับสมดุล SP: สกิลถูก ๆ อย่างคุไนเงาใช้ได้ไม่จำกัด
+- หน้าต่างสกิล 7 แถวอาจล้นจอมือถือ (จัด HUD ทีหลังตาม Director)
+- ยังไม่ได้กดคีย์ 1–5/K จริงและดูเอฟเฟกต์บนจอด้วยตา (เทสผ่าน remote ตรง)
+
+เซฟเทสของ Director (u_1985961773 ใน store dev) เป็นนินจา Lv3 คุไนระดับ 2 แต้มเหลือ 2 ถ้าต้องเปลี่ยนเพื่อเทส ให้สำรองก่อนและคืนให้ตรงเดิม
 
 place ทดสอบ DataStore: `SpiritWard Test` (134965985305218, private) store `SpiritWardProfile_dev` · ห้ามย้อน jitter credit ที่มีเพดาน, touch layout 2×2 หรือ SpiritWardRemotes (DEC-012 ถึง DEC-014)
 
